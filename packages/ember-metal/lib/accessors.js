@@ -260,6 +260,11 @@ Ember.getPath = function(root, path) {
   var hasThis, hasStar, isGlobal;
   
   if (!path && 'string'===typeof root) {
+    // Helpers that operate with 'this' within an #each
+    if (path === '') {
+      return root;
+    }
+
     path = root;
     root = null;
   }
@@ -279,7 +284,8 @@ Ember.getPath = function(root, path) {
     var tuple = normalizeTuple(root, path);
     root = tuple[0];
     path = tuple[1];
-  } 
+    tuple.length = 0;
+  }
   
   return getPath(root, path);
 };
@@ -298,6 +304,7 @@ Ember.setPath = function(root, path, value, tolerant) {
     var tuple = normalizeTuple(root, path);
     root = tuple[0];
     path = tuple[1];
+    tuple.length = 0;
   }
 
   if (path.indexOf('.') > 0) {
