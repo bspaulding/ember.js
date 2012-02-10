@@ -16,7 +16,7 @@ module("Ember.Application", {
   },
 
   teardown: function() {
-    application.destroy();
+    Ember.run(function(){ application.destroy(); });
   }
 });
 
@@ -40,6 +40,16 @@ test("you cannot make a new application that is a descendent of an existing appl
 test("you cannot make a new application that is a duplicate of an existing application", function() {
   raises(function() {
     Ember.Application.create({ rootElement: '#one' });
+  }, Error);
+});
+
+test("you cannot make two default applications without a rootElement error", function() {
+  // Teardown existing
+  application.destroy();
+
+  application = Ember.Application.create();
+  raises(function() {
+    Ember.Application.create();
   }, Error);
 });
 

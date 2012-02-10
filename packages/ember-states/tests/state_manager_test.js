@@ -177,6 +177,33 @@ test("it automatically transitions to a default state", function() {
   ok(get(stateManager, 'currentState').isStart, "automatically transitions to start state");
 });
 
+test("it automatically transitions to a default state that is an instance", function() {
+  stateManager = Ember.StateManager.create({
+    states: {
+      foo: Ember.State.create({
+        start: Ember.State.extend({
+          isStart: true
+        })
+      })
+    }
+  });
+
+  stateManager.goToState('foo');
+  ok(get(stateManager, 'currentState').isStart, "automatically transitions to start state");
+});
+
+test("on a state manager, it automatically transitions to a default state that is an instance", function() {
+  stateManager = Ember.StateManager.create({
+    states: {
+      start: Ember.State.extend({
+        isStart: true
+      })
+    }
+  });
+
+  ok(get(stateManager, 'currentState').isStart, "automatically transitions to start state");
+});
+
 test("it automatically transitions to a default state specified using the initialState property", function() {
   stateManager = Ember.StateManager.create({
     initialState: 'beginning',
@@ -189,10 +216,10 @@ test("it automatically transitions to a default state specified using the initia
   ok(get(stateManager, 'currentState').isStart, "automatically transitions to beginning state");
 });
 
-test("it automatically transitions to a default substate specified using the initialSubstate property", function() {
+test("it automatically transitions to a default substate specified using the initialState property", function() {
   stateManager = Ember.StateManager.create({
     start: Ember.State.create({
-      initialSubstate: 'beginningSubstate',
+      initialState: 'beginningSubstate',
 
       beginningSubstate: Ember.State.create({
         isStart: true
@@ -201,6 +228,26 @@ test("it automatically transitions to a default substate specified using the ini
   });
 
   ok(get(stateManager, 'currentState').isStart, "automatically transitions to beginning substate");
+});
+
+test("it automatically transitions to multiple substates specified using either start or initialState property", function() {
+  stateManager = Ember.StateManager.create({
+    start: Ember.State.create({
+      initialState: 'beginningSubstate',
+
+      beginningSubstate: Ember.State.create({
+        start: Ember.State.create({
+          initialState: 'finalSubstate',
+
+          finalSubstate: Ember.State.create({
+            isStart: true
+          })
+        })
+      })
+    })
+  });
+
+  ok(get(stateManager, 'currentState').isStart, "automatically transitions to final substate");
 });
 
 test("it reports the view associated with the current view state, if any", function() {
@@ -261,6 +308,26 @@ test("it sends exit events to nested states when changing to a top-level state",
 
   equals(stateManager.redeem.entered, 1, "redeemed state is entered once");
 });
+
+test("it sends exit events in the correct order when changing to a top-level state", function() {
+  var exitOrder = [],
+      stateManager = Ember.StateManager.create({
+        start: Ember.State.create({
+          outer: Ember.State.create({
+            inner: Ember.State.create({
+              exit: function() {exitOrder.push('exitedInner')},
+            }),
+            exit: function() {exitOrder.push('exitedOuter')}
+          })
+        })
+      });
+
+  stateManager.goToState('start.outer.inner');
+  stateManager.goToState('start');
+  equals(exitOrder.length, 2, "precond - it calls both exits");
+  equals(exitOrder[0], 'exitedInner', "inner exit is called first");
+  equals(exitOrder[1], 'exitedOuter', "outer exit is called second");
+})
 
 var passedContext, loadingEventCalled, loadedEventCalled, eventInChildCalled;
 loadingEventCalled = loadedEventCalled = eventInChildCalled = 0;

@@ -26,9 +26,11 @@ function pushCtx(ctx) {
 }
 
 function iter(key, value) {
+  var valueProvided = arguments.length === 2;
+
   function i(item) {
     var cur = get(item, key);
-    return value===undefined ? !!cur : value===cur;
+    return valueProvided ? value===cur : !!cur;
   } 
   return i ;
 }
@@ -123,6 +125,13 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     If your enumerable is empty, this method should return undefined.
 
     @returns {Object} the object or undefined
+
+    @example
+    var arr = ["a", "b", "c"];
+    arr.firstObject(); => "a"
+
+    var arr = [];
+    arr.firstObject(); => undefined
   */
   firstObject: Ember.computed(function() {
     if (get(this, 'length')===0) return undefined ;
@@ -136,9 +145,18 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
   }).property(),
 
   /**
-    Helper method returns the last object from a collection.
+    Helper method returns the last object from a collection. If your enumerable
+    contains only one object, this method should always return that object.
+    If your enumerable is empty, this method should return undefined.
 
-    @returns {Object} the object or undefined
+    @returns {Object} the last object or undefined
+
+    @example
+    var arr = ["a", "b", "c"];
+    arr.lastObject(); => "c"
+
+    var arr = [];
+    arr.lastObject(); => undefined
   */
   lastObject: Ember.computed(function() {
     var len = get(this, 'length');
@@ -154,7 +172,6 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
       pushCtx(context);
       return last;
     }
-    
   }).property(),
 
   /**
@@ -321,7 +338,7 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     @returns {Array} filtered array
   */
   filterProperty: function(key, value) {
-    return this.filter(iter(key, value));
+    return this.filter(iter.apply(this, arguments));
   },
 
   /**
@@ -376,7 +393,7 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     @returns {Object} found item or null
   */
   findProperty: function(key, value) {
-    return this.find(iter(key, value));
+    return this.find(iter.apply(this, arguments));
   },
 
   /**
@@ -421,7 +438,7 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     @returns {Array} filtered array
   */
   everyProperty: function(key, value) {
-    return this.every(iter(key, value));
+    return this.every(iter.apply(this, arguments));
   },
 
 
@@ -467,7 +484,7 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     @returns {Boolean} true
   */
   someProperty: function(key, value) {
-    return this.some(iter(key, value));
+    return this.some(iter.apply(this, arguments));
   },
 
   /**
@@ -537,7 +554,7 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
 
   /**
     Simply converts the enumerable into a genuine array.  The order is not 
-    gauranteed.  Corresponds to the method implemented by Prototype.
+    guaranteed.  Corresponds to the method implemented by Prototype.
 
     @returns {Array} the enumerable as an array.
   */

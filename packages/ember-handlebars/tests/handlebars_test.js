@@ -898,6 +898,37 @@ test("should update boundIf blocks if the conditional changes", function() {
   equals(view.$('#first').text(), "bam", "re-renders block when condition changes to true");
 });
 
+test("should not update boundIf if truthiness does not change", function() {
+  var renderCount = 0;
+
+  view = Ember.View.create({
+    template: Ember.Handlebars.compile('<h1 id="first">{{#boundIf "shouldDisplay"}}{{view InnerViewClass}}{{/boundIf}}</h1>'),
+
+    shouldDisplay: true,
+
+    InnerViewClass: Ember.View.extend({
+      template: Ember.Handlebars.compile("bam"),
+
+      render: function() {
+        renderCount++;
+        return this._super.apply(this, arguments);
+      }
+    })
+  });
+
+  appendView();
+
+  equals(renderCount, 1, "precond - should have rendered once");
+  equals(view.$('#first').text(), "bam", "renders block when condition is true");
+
+  Ember.run(function() {
+    set(view, 'shouldDisplay', 1);
+  });
+
+  equals(renderCount, 1, "should not have rerendered");
+  equals(view.$('#first').text(), "bam", "renders block when condition is true");
+});
+
 test("boundIf should support parent access", function(){
   view = Ember.View.create({
     template: Ember.Handlebars.compile(
@@ -1291,15 +1322,45 @@ test("should be able to use standard Handlebars #each helper", function() {
 
 test("should be able to use unbound helper in #each helper", function() {
   view = Ember.View.create({
-    items: Ember.A(['a', 'b', 'c']),
-      template: Ember.Handlebars.compile(
-        "<ul>{{#each items}}<li>{{unbound this}}</li>{{/each}}</ul>")
+    items: Ember.A(['a', 'b', 'c', 1, 2, 3]),
+    template: Ember.Handlebars.compile(
+      "<ul>{{#each items}}<li>{{unbound this}}</li>{{/each}}</ul>")
   });
 
   appendView();
 
-  equals(view.$().text(), "abc");
+  equals(view.$().text(), "abc123");
   equals(view.$('li').children().length, 0, "No markers");
+});
+
+test("should be able to use unbound helper in #each helper (with objects)", function() {
+  view = Ember.View.create({
+    items: Ember.A([{wham: 'bam'}, {wham: 1}]),
+    template: Ember.Handlebars.compile(
+      "<ul>{{#each items}}<li>{{unbound wham}}</li>{{/each}}</ul>")
+  });
+
+  appendView();
+
+  equals(view.$().text(), "bam1");
+  equals(view.$('li').children().length, 0, "No markers");
+});
+
+test("should work with precompiled templates", function() {
+  var templateString = Ember.Handlebars.precompile("{{value}}"),
+      compiledTemplate = Ember.Handlebars.template(eval('('+templateString+')'));
+  view = Ember.View.create({
+    value: "rendered",
+    template: compiledTemplate
+  });
+
+  appendView();
+
+  equals(view.$().text(), "rendered", "the precompiled template was rendered");
+
+  Ember.run(function() { view.set('value', 'updated'); });
+
+  equals(view.$().text(), "updated", "the precompiled template was updated");
 });
 
 module("Templates redrawing and bindings", {
@@ -1477,7 +1538,10 @@ test("should not enter an infinite loop when binding an attribute in Handlebars"
 
   parentView.destroy();
 
-  App = undefined;
+  Ember.run(function() {
+    App.destroy();
+    App = undefined;
+  });
 });
 
 test("should render other templates using the {{template}} helper", function() {

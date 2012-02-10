@@ -13,18 +13,25 @@ Ember.Button = Ember.View.extend(Ember.TargetActionSupport, {
   classNameBindings: ['isActive'],
 
   tagName: 'button',
-  attributeBindings: ['type', 'disabled'],
-  type: 'button',
-  disabled: false,
+
   propagateEvents: false,
 
-  click: function() {
-    // Actually invoke the button's target and action.
-    // This method comes from the Ember.TargetActionSupport mixin.
-    this.triggerAction();
+  attributeBindings: ['type', 'disabled', 'href'],
 
-    return get(this, 'propagateEvents');
-  },
+  // Defaults to 'button' if tagName is 'input' or 'button'
+  type: Ember.computed(function(key, value) {
+    var tagName = this.get('tagName');
+    if (value !== undefined) { this._type = value; }
+    if (this._type !== undefined) { return this._type; }
+    if (tagName === 'input' || tagName === 'button') { return 'button'; }
+  }).property('tagName').cacheable(),
+
+  disabled: false,
+
+  // Allow 'a' tags to act like buttons
+  href: Ember.computed(function() {
+    return this.get('tagName') === 'a' ? '#' : null;
+  }).property('tagName').cacheable(),
 
   mouseDown: function() {
     if (!get(this, 'disabled')) {
@@ -51,6 +58,9 @@ Ember.Button = Ember.View.extend(Ember.TargetActionSupport, {
 
   mouseUp: function(event) {
     if (get(this, 'isActive')) {
+      // Actually invoke the button's target and action.
+      // This method comes from the Ember.TargetActionSupport mixin.
+      this.triggerAction();
       set(this, 'isActive', false);
     }
 
@@ -59,15 +69,29 @@ Ember.Button = Ember.View.extend(Ember.TargetActionSupport, {
     return get(this, 'propagateEvents');
   },
 
+  keyDown: function(event) {
+    // Handle space or enter
+    if (event.keyCode === 13 || event.keyCode === 32) {
+      this.mouseDown();
+    }
+  },
+
+  keyUp: function(event) {
+    // Handle space or enter
+    if (event.keyCode === 13 || event.keyCode === 32) {
+      this.mouseUp();
+    }
+  },
+
   // TODO: Handle proper touch behavior.  Including should make inactive when
   // finger moves more than 20x outside of the edge of the button (vs mouse
   // which goes inactive as soon as mouse goes out of edges.)
 
   touchStart: function(touch) {
-    this.mouseDown(touch);
+    return this.mouseDown(touch);
   },
 
   touchEnd: function(touch) {
-    this.mouseUp(touch);
+    return this.mouseUp(touch);
   }
 });

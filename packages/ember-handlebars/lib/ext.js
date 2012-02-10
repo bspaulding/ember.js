@@ -101,6 +101,19 @@ Ember.Handlebars.Compiler.prototype.mustache = function(mustache) {
 };
 
 /**
+  Used for precompilation of Ember Handlebars templates. This will not be used during normal
+  app execution.
+
+  @param {String} string The template to precompile
+*/
+Ember.Handlebars.precompile = function(string) {
+  var ast = Handlebars.parse(string);
+  var options = { data: true, stringParams: true };
+  var environment = new Ember.Handlebars.Compiler().compile(ast, options);
+  return new Ember.Handlebars.JavaScriptCompiler().compile(environment, options, undefined, true);
+};
+
+/**
   The entry point for Ember Handlebars. This replaces the default Handlebars.compile and turns on
   template-local data and String parameters.
 
@@ -113,6 +126,21 @@ Ember.Handlebars.compile = function(string) {
   var templateSpec = new Ember.Handlebars.JavaScriptCompiler().compile(environment, options, undefined, true);
 
   return Handlebars.template(templateSpec);
+};
+
+/**
+  Lookup both on root and on window
+
+  @param {Object} root The object to look up the property on
+  @param {String} path The path to be lookedup
+*/
+Ember.Handlebars.getPath = function(root, path) {
+  // TODO: Remove this `false` when the `getPath` globals support is removed
+  var value = Ember.getPath(root, path, false);
+  if (value === undefined && root !== window && Ember.isGlobalPath(path)) {
+    value = Ember.getPath(window, path);
+  }
+  return value;
 };
 
 /**

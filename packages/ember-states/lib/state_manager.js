@@ -18,23 +18,9 @@ Ember.StateManager = Ember.State.extend(
   init: function() {
     this._super();
 
-    var states = get(this, 'states');
-    if (!states) {
-      states = {};
-      Ember.keys(this).forEach(function(name) {
-        var value = get(this, name);
-
-        if (value && value.isState) {
-          states[name] = value;
-        }
-      }, this);
-
-      set(this, 'states', states);
-    }
-
     var initialState = get(this, 'initialState');
 
-    if (!initialState && get(this, 'start')) {
+    if (!initialState && getPath(this, 'states.start')) {
       initialState = 'start';
     }
 
@@ -86,32 +72,72 @@ Ember.StateManager = Ember.State.extend(
     }
   },
 
+  findStatesByRoute: function(state, route) {
+    if (!route || route === "") { return undefined; }
+    var r = route.split('.'), ret = [];
+
+    for (var i=0, len = r.length; i < len; i += 1) {
+      var states = get(state, 'states') ;
+
+      if (!states) { return undefined; }
+
+      var s = get(states, r[i]);
+      if (s) { state = s; ret.push(s); }
+      else { return undefined; }
+    }
+
+    return ret;
+  },
+
   goToState: function(name) {
     if (Ember.empty(name)) { return; }
 
     var currentState = get(this, 'currentState') || this, state, newState;
 
-    var exitStates = Ember.A();
+    var exitStates = [], enterStates;
 
-    newState = getPath(currentState, name);
     state = currentState;
 
-    if (!newState) {
+    if (state.routes[name]) {
+      // cache hit
+      exitStates = state.routes[name].exitStates;
+      enterStates = state.routes[name].enterStates;
+      state = state.routes[name].futureState;
+    } else {
+      // cache miss
+
+      newState = this.findStatesByRoute(currentState, name);
+
       while (state && !newState) {
-        exitStates[Ember.guidFor(state)] = state;
-        exitStates.push(state);
+        exitStates.unshift(state);
 
         state = get(state, 'parentState');
         if (!state) {
-          state = get(this, 'states');
-          newState = getPath(state, name);
+          newState = this.findStatesByRoute(this, name);
           if (!newState) { return; }
         }
-        newState = getPath(state, name);
+        newState = this.findStatesByRoute(state, name);
       }
+
+      enterStates = newState.slice(0), exitStates = exitStates.slice(0);
+
+      if (enterStates.length > 0) {
+        state = enterStates[enterStates.length - 1];
+
+        while (enterStates.length > 0 && enterStates[0] === exitStates[0]) {
+          enterStates.shift();
+          exitStates.shift();
+        }
+      }
+
+      currentState.routes[name] = {
+        exitStates: exitStates,
+        enterStates: enterStates,
+        futureState: state
+      };
     }
 
-    this.enterState(state, name, exitStates);
+    this.enterState(exitStates, enterStates, state);
   },
 
   getState: function(name) {
@@ -148,26 +174,12 @@ Ember.StateManager = Ember.State.extend(
     if (!async) { transition.resume(); }
   },
 
-  enterState: function(parent, name, exitStates) {
+  enterState: function(exitStates, enterStates, state) {
     var log = Ember.LOG_STATE_TRANSITIONS;
-
-    var parts = name.split("."), state = parent, enterStates = Ember.A();
-
-    parts.forEach(function(name) {
-      state = state[name];
-
-      var guid = Ember.guidFor(state);
-
-      if (guid in exitStates) {
-        exitStates.removeObject(state);
-        delete exitStates[guid];
-      } else {
-        enterStates.push(state);
-      }
-    });
 
     var stateManager = this;
 
+    exitStates.reverse();
     this.asyncEach(exitStates, function(state, transition) {
       state.exit(stateManager, transition);
     }, function() {
@@ -175,18 +187,26 @@ Ember.StateManager = Ember.State.extend(
         if (log) { console.log("STATEMANAGER: Entering " + state.name); }
         state.enter(stateManager, transition);
       }, function() {
-        var startState = state, enteredState, initialSubstate;
+        var startState = state, enteredState, initialState;
 
-        initialSubstate = get(startState, 'initialSubstate');
+        initialState = get(startState, 'initialState');
 
-        if (!initialSubstate) {
-          initialSubstate = 'start';
+        if (!initialState) {
+          initialState = 'start';
         }
 
         // right now, start states cannot be entered asynchronously
-        while (startState = get(startState, initialSubstate)) {
+        while (startState = get(get(startState, 'states'), initialState)) {
           enteredState = startState;
+
+          if (log) { console.log("STATEMANAGER: Entering " + startState.name); }
           startState.enter(stateManager);
+
+          initialState = get(startState, 'initialState');
+
+          if (!initialState) {
+            initialState = 'start';
+          }
         }
 
         set(this, 'currentState', enteredState || state);

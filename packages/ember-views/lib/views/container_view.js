@@ -35,29 +35,14 @@ Ember.ContainerView = Ember.View.extend({
 
       _childViews[idx] = view;
     }, this);
-  },
 
-  /**
-    Extends Ember.View's implementation of renderToBuffer to
-    set up an array observer on the child views array. This
-    observer will detect when child views are added or removed
-    and update the DOM to reflect the mutation.
-
-    Note that we set up this array observer in the `renderToBuffer`
-    method because any views set up previously will be rendered the first
-    time the container is rendered.
-
-    @private
-  */
-  renderToBuffer: function() {
-    var ret = this._super.apply(this, arguments);
-
+    // Sets up an array observer on the child views array. This
+    // observer will detect when child views are added or removed
+    // and update the DOM to reflect the mutation.
     get(this, 'childViews').addArrayObserver(this, {
       willChange: 'childViewsWillChange',
       didChange: 'childViewsDidChange'
     });
-
-    return ret;
   },
 
   /**
@@ -73,7 +58,7 @@ Ember.ContainerView = Ember.View.extend({
   },
 
   /**
-    When the container view is destroyer, tear down the child views
+    When the container view is destroyed, tear down the child views
     array observer.
 
     @private
@@ -100,6 +85,11 @@ Ember.ContainerView = Ember.View.extend({
     @param {Number} removed the number of child views removed
   **/
   childViewsWillChange: function(views, start, removed) {
+    if (removed === 0) { return; }
+
+    var changedViews = views.slice(start, start+removed);
+    this.setParentView(changedViews, null);
+
     this.invokeForState('childViewsWillChange', views, start, removed);
   },
 
@@ -124,8 +114,17 @@ Ember.ContainerView = Ember.View.extend({
     // No new child views were added; bail out.
     if (added === 0) return;
 
+    var changedViews = views.slice(start, start+added);
+    this.setParentView(changedViews, this);
+
     // Let the current state handle the changes
     this.invokeForState('childViewsDidChange', views, start, added);
+  },
+
+  setParentView: function(views, parentView) {
+    views.forEach(function(view) {
+      set(view, '_parentView', parentView);
+    });
   },
 
   /**
@@ -184,7 +183,7 @@ Ember.ContainerView.states = {
   hasElement: {
     childViewsWillChange: function(view, views, start, removed) {
       for (var i=start; i<start+removed; i++) {
-        views[i].destroyElement();
+        views[i].remove();
       }
     },
 

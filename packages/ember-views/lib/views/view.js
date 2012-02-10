@@ -148,6 +148,12 @@ Ember.View = Ember.Object.extend(
     }
   }).property('_parentView'),
 
+  // return the current view, not including virtual views
+  concreteView: Ember.computed(function() {
+    if (!this.isVirtual) { return this; }
+    else { return get(this, 'parentView'); }
+  }).property('_parentView'),
+
   /**
     If false, the view will appear hidden in DOM.
 
@@ -463,7 +469,11 @@ Ember.View = Ember.Object.extend(
         property = split[0],
         className = split[1];
 
-    var val = Ember.getPath(this, property);
+    // TODO: Remove this `false` when the `getPath` globals support is removed
+    var val = Ember.getPath(this, property, false);
+    if (val === undefined && Ember.isGlobalPath(property)) {
+      val = Ember.getPath(window, property);
+    }
 
     // If value is a Boolean and true, return the dasherized property
     // name.
@@ -692,7 +702,7 @@ Ember.View = Ember.Object.extend(
   */
   renderBuffer: function(tagName) {
     tagName = tagName || get(this, 'tagName');
-    if (tagName == null) { tagName = tagName || 'div'; }
+    if (tagName == null) { tagName = 'div'; }
 
     return Ember.RenderBuffer(tagName);
   },
@@ -881,7 +891,7 @@ Ember.View = Ember.Object.extend(
     // insert a new buffer after the "parent buffer").
     if (parentBuffer) {
       var tagName = get(this, 'tagName');
-      tagName = tagName == null ? 'div' : tagName;
+      if (tagName == null) { tagName = 'div'; }
 
       buffer = parentBuffer[bufferOperation](tagName);
     } else {
@@ -1070,6 +1080,14 @@ Ember.View = Ember.Object.extend(
     set(this, 'domManager', this.domManagerClass.create({ view: this }));
 
     meta(this)["Ember.View"] = {};
+
+    var viewController = get(this, 'viewController');
+    if (viewController) {
+      viewController = Ember.getPath(viewController);
+      if (viewController) {
+        set(viewController, 'view', this);
+      }
+    }
   },
 
   appendChild: function(view, options) {
@@ -1141,7 +1159,7 @@ Ember.View = Ember.Object.extend(
         childViews = get(this, '_childViews'),
         parent     = get(this, '_parentView'),
         elementId  = get(this, 'elementId'),
-        childLen   = childViews.length;
+        childLen;
 
     // destroy the element -- this will avoid each child view destroying
     // the element over and over again...
@@ -1156,6 +1174,7 @@ Ember.View = Ember.Object.extend(
 
     this._super();
 
+    childLen = get(childViews, 'length');
     for (var i=childLen-1; i>=0; i--) {
       childViews[i].removedFromDOM = true;
       childViews[i].destroy();
@@ -1184,7 +1203,10 @@ Ember.View = Ember.Object.extend(
       view = view.create(attrs || {}, { _parentView: this });
 
       var viewName = attrs && attrs.viewName || view.viewName;
-      if (viewName) { set(this, viewName, view); }
+
+      // don't set the property on a virtual view, as they are invisible to
+      // consumers of the view API
+      if (viewName) { set(get(this, 'concreteView'), viewName, view); }
     } else {
       ember_assert('must pass instance of View', view instanceof Ember.View);
       set(view, '_parentView', this);
@@ -1264,6 +1286,19 @@ Ember.View = Ember.Object.extend(
         view.transitionTo(state);
       });
     }
+  },
+
+  // .......................................................
+  // EVENT HANDLING
+  //
+
+  /**
+    @private
+
+    Handle events from `Ember.EventDispatcher`
+  */
+  handleEvent: function(eventName, evt) {
+    return this.invokeForState('handleEvent', eventName, evt);
   }
 
 });
