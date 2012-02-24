@@ -24,7 +24,7 @@ require('ember-metal/run_loop'); // Ember.run.schedule
   can also enable this from the console or temporarily.
 
   @type Boolean
-  @default NO
+  @default false
 */
 Ember.LOG_BINDINGS = false || !!Ember.ENV.LOG_BINDINGS;
 
@@ -173,20 +173,20 @@ var OR_OPERATION = function(obj, left, right) {
 var K = function() {};
 var Binding = function(toPath, fromPath) {
   var self;
-  
+
   if (this instanceof Binding) {
     self = this;
   } else {
     self = new K();
   }
-  
+
   /** @private */
   self._direction = 'fwd';
 
   /** @private */
   self._from = fromPath;
   self._to   = toPath;
-  
+
   return self;
 };
 
@@ -240,7 +240,7 @@ Binding.prototype = /** @scope Ember.Binding.prototype */ {
 
     @param {Boolean} flag
       (Optional) passing nothing here will make the binding oneWay.  You can
-      instead pass NO to disable oneWay, making the binding two way again.
+      instead pass false to disable oneWay, making the binding two way again.
 
     @returns {Ember.Binding} receiver
   */
@@ -332,8 +332,8 @@ Binding.prototype = /** @scope Ember.Binding.prototype */ {
 
   /**
     Adds a transform to convert the value to a bool value. If the value is
-    an array it will return YES if array is not empty. If the value is a
-    string it will return YES if the string is not empty.
+    an array it will return true if array is not empty. If the value is a
+    string it will return true if the string is not empty.
 
     @returns {Ember.Binding} this
   */
@@ -350,10 +350,9 @@ Binding.prototype = /** @scope Ember.Binding.prototype */ {
     @returns {Ember.Binding} this
   */
   notEmpty: function(placeholder) {
-    // Display warning for users using the SproutCore 1.x-style API.
-    ember_assert("notEmpty should only take a placeholder as a parameter. You no longer need to pass null as the first parameter.", arguments.length < 2);
-
-    if (placeholder == undefined) { placeholder = Ember.EMPTY_PLACEHOLDER; }
+    if (placeholder === null || placeholder === undefined) {
+      placeholder = Ember.EMPTY_PLACEHOLDER;
+    }
 
     this.transform({
       to: function(val) { return empty(val) ? placeholder : val; }
@@ -371,10 +370,12 @@ Binding.prototype = /** @scope Ember.Binding.prototype */ {
     @returns {Ember.Binding} this
   */
   notNull: function(placeholder) {
-    if (placeholder == undefined) { placeholder = Ember.EMPTY_PLACEHOLDER; }
+    if (placeholder === null || placeholder === undefined) {
+      placeholder = Ember.EMPTY_PLACEHOLDER;
+    }
 
     this.transform({
-      to: function(val) { return val == null ? placeholder : val; }
+      to: function(val) { return (val === null || val === undefined) ? placeholder : val; }
     });
 
     return this;
@@ -392,12 +393,12 @@ Binding.prototype = /** @scope Ember.Binding.prototype */ {
   },
 
   /**
-    Adds a transform that will return YES if the value is null or undefined, NO otherwise.
+    Adds a transform that will return true if the value is null or undefined, false otherwise.
 
     @returns {Ember.Binding} this
   */
   isNull: function() {
-    this.transform(function(val) { return val == null; });
+    this.transform(function(val) { return val === null || val === undefined; });
     return this;
   },
 

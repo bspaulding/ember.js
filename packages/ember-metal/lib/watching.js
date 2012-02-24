@@ -11,6 +11,7 @@ require('ember-metal/utils');
 require('ember-metal/accessors');
 require('ember-metal/properties');
 require('ember-metal/observer');
+require('ember-metal/array');
 
 var guidFor = Ember.guidFor;
 var meta    = Ember.meta;
@@ -21,6 +22,7 @@ var SIMPLE_PROPERTY = Ember.SIMPLE_PROPERTY;
 var GUID_KEY = Ember.GUID_KEY;
 var META_KEY = Ember.META_KEY;
 var notifyObservers = Ember.notifyObservers;
+var forEach = Ember.ArrayUtils.forEach;
 
 var FIRST_KEY = /^([^\.\*]+)/;
 var IS_PATH = /[\.\*]/;
@@ -77,7 +79,7 @@ function dependentKeysDidChange(obj, depKey, meta) {
 
 // ..........................................................
 // CHAIN
-// 
+//
 
 function addChainWatcher(obj, keyName, node) {
   if (!obj || ('object' !== typeof obj)) return; // nothing to do
@@ -104,15 +106,15 @@ function removeChainWatcher(obj, keyName, node) {
 var pendingQueue = [];
 
 // attempts to add the pendingQueue chains again.  If some of them end up
-// back in the queue and reschedule is true, schedules a timeout to try 
+// back in the queue and reschedule is true, schedules a timeout to try
 // again.
 function flushPendingChains(reschedule) {
   if (pendingQueue.length===0) return ; // nothing to do
-  
+
   var queue = pendingQueue;
   pendingQueue = [];
-  
-  queue.forEach(function(q) { q[0].add(q[1]); });
+
+  forEach(queue, function(q) { q[0].add(q[1]); });
   if (reschedule!==false && pendingQueue.length>0) {
     setTimeout(flushPendingChains, 1);
   }
@@ -123,7 +125,7 @@ function isProto(pvalue) {
 }
 
 // A ChainNode watches a single key on an object.  If you provide a starting
-// value for the key then the node won't actually watch it.  For a root node 
+// value for the key then the node won't actually watch it.  For a root node
 // pass null for parent and key and object for value.
 var ChainNode = function(parent, key, value, separator) {
   var obj;
@@ -180,13 +182,13 @@ Wp.copy = function(obj) {
   var ret = new ChainNode(null, null, obj, this._separator);
   var paths = this._paths, path;
   for(path in paths) {
-    if (!(paths[path] > 0)) continue; // this check will also catch non-number vals.
+    if (paths[path] <= 0) continue; // this check will also catch non-number vals.
     ret.add(path);
   }
   return ret;
 };
 
-// called on the root node of a chain to setup watchers on the specified 
+// called on the root node of a chain to setup watchers on the specified
 // path.
 Wp.add = function(path) {
   var obj, tuple, key, src, separator, paths;
@@ -281,7 +283,7 @@ Wp.unchain = function(key, path) {
     delete chains[node._key];
     node.destroy();
   }
-  
+
 };
 
 Wp.willChange = function() {
@@ -292,7 +294,7 @@ Wp.willChange = function() {
       chains[key].willChange();
     }
   }
-  
+
   if (this._parent) this._parent.chainWillChange(this, this._key, 1);
 };
 
@@ -335,7 +337,7 @@ Wp.didChange = function(suppressEvent) {
     if (this._parent && this._parent._key === '@each')
       this.value();
   }
-  
+
   // then notify chains...
   var chains = this._chains;
   if (chains) {
@@ -351,7 +353,7 @@ Wp.didChange = function(suppressEvent) {
   if (this._parent) this._parent.chainDidChange(this, this._key, 1);
 };
 
-// get the chains for the current object.  If the current object has 
+// get the chains for the current object.  If the current object has
 // chains inherited from the proto they will be cloned and reconfigured for
 // the current object.
 function chainsFor(obj) {
@@ -382,7 +384,7 @@ function notifyChains(obj, m, keyName, methodName, arg) {
 
 Ember.overrideChains = function(obj, keyName, m) {
   notifyChains(obj, m, keyName, 'didChange', true);
-}
+};
 
 function chainsWillChange(obj, keyName, m) {
   notifyChains(obj, m, keyName, 'willChange');
@@ -394,7 +396,7 @@ function chainsDidChange(obj, keyName, m) {
 
 // ..........................................................
 // WATCH
-// 
+//
 
 var WATCHED_PROPERTY = Ember.SIMPLE_PROPERTY.watched;
 
@@ -402,7 +404,7 @@ var WATCHED_PROPERTY = Ember.SIMPLE_PROPERTY.watched;
   @private
 
   Starts watching a property on an object.  Whenever the property changes,
-  invokes Ember.propertyWillChange and Ember.propertyDidChange.  This is the 
+  invokes Ember.propertyWillChange and Ember.propertyDidChange.  This is the
   primitive used by observers and dependent keys; usually you will never call
   this method directly but instead use higher level methods like
   Ember.addObserver().
@@ -411,7 +413,7 @@ Ember.watch = function(obj, keyName) {
 
   // can't watch length on Array - it is special...
   if (keyName === 'length' && Ember.typeOf(obj)==='array') return this;
-  
+
   var m = meta(obj), watching = m.watching, desc;
   keyName = normalizePath(keyName);
 
@@ -458,7 +460,7 @@ Ember.unwatch = function(obj, keyName) {
   } else if (watching[keyName]>1) {
     watching[keyName]--;
   }
-  
+
   return this;
 };
 
@@ -475,7 +477,7 @@ Ember.rewatch = function(obj) {
   // make sure the object has its own guid.
   if (GUID_KEY in obj && !obj.hasOwnProperty(GUID_KEY)) {
     Ember.generateGuid(obj, 'ember');
-  }  
+  }
 
   // make sure any chained watchers update.
   if (chains && chains.value() !== obj) chainsFor(obj);
@@ -493,23 +495,23 @@ Ember.rewatch = function(obj) {
 
 // ..........................................................
 // PROPERTY CHANGES
-// 
+//
 
 /**
   This function is called just before an object property is about to change.
   It will notify any before observers and prepare caches among other things.
-  
+
   Normally you will not need to call this method directly but if for some
-  reason you can't directly watch a property you can invoke this method 
-  manually along with `Ember.propertyDidChange()` which you should call just 
+  reason you can't directly watch a property you can invoke this method
+  manually along with `Ember.propertyDidChange()` which you should call just
   after the property value changes.
-  
+
   @param {Object} obj
     The object with the property that will change
-    
+
   @param {String} keyName
     The property key (or path) that will change.
-    
+
   @returns {void}
 */
 var propertyWillChange = Ember.propertyWillChange = function(obj, keyName) {
@@ -524,18 +526,18 @@ var propertyWillChange = Ember.propertyWillChange = function(obj, keyName) {
 /**
   This function is called just after an object property has changed.
   It will notify any observers and clear caches among other things.
-  
+
   Normally you will not need to call this method directly but if for some
-  reason you can't directly watch a property you can invoke this method 
-  manually along with `Ember.propertyWilLChange()` which you should call just 
+  reason you can't directly watch a property you can invoke this method
+  manually along with `Ember.propertyWilLChange()` which you should call just
   before the property value changes.
-  
+
   @param {Object} obj
     The object with the property that will change
-    
+
   @param {String} keyName
     The property key (or path) that will change.
-    
+
   @returns {void}
 */
 var propertyDidChange = Ember.propertyDidChange = function(obj, keyName) {
@@ -547,12 +549,12 @@ var propertyDidChange = Ember.propertyDidChange = function(obj, keyName) {
   Ember.notifyObservers(obj, keyName);
 };
 
-var NODE_STACK = []
+var NODE_STACK = [];
 
 /**
   Tears down the meta on an object so that it can be garbage collected.
   Multiple calls will have no effect.
-  
+
   @param {Object} obj  the object to destroy
   @returns {void}
 */
