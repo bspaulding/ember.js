@@ -4,6 +4,8 @@
 // License:   Licensed under MIT license (see license.js)
 // ==========================================================================
 
+/*global jQuery*/
+
 module("Ember.meta");
 
 test("should return the same hash for an object", function() {
@@ -33,10 +35,31 @@ test("should create nested objects if writable is true", function() {
   ok(Ember.meta(obj).foo.bar.baz['bat'] = true, "can set a property on the newly created hash");
 });
 
-test("getMeta and setMeta", function() {
+test("getMeta and setMeta", function() {
   var obj = {};
 
   ok(!Ember.getMeta(obj, 'foo'), "precond - foo property on meta does not yet exist");
   Ember.setMeta(obj, 'foo', "bar");
   equal(Ember.getMeta(obj, 'foo'), "bar", "foo property on meta now exists");
 });
+
+if (window.jQuery) {
+  // Tests fix for https://github.com/emberjs/ember.js/issues/344
+  // This is primarily for older browsers such as IE8
+  test("jQuery.extend works on an extended Array", function() {
+    var array = [1,2,3],
+        result = {};
+
+
+    // Apply a mixin to an array so we can check the behavior of extended arrays
+    // Since prototypes may not be extended and NativeArray isn't defined in metal, we have an alternate mixin
+    if (!Ember.NativeArray || !Ember.NativeArray.detect(array)) {
+      var mixin = Ember.Mixin.create({ prop: 'val' });
+      array = mixin.apply(array);
+    }
+
+    jQuery.extend(true, result, { arr: array });
+
+    equal(result.arr.length, 3);
+  });
+}

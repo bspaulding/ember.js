@@ -17,15 +17,18 @@ var a_slice = Array.prototype.slice;
 var a_indexOf = Ember.ArrayUtils.indexOf;
 
 var contexts = [];
+/** @private */
 function popCtx() {
   return contexts.length===0 ? {} : contexts.pop();
 }
 
+/** @private */
 function pushCtx(ctx) {
   contexts.push(ctx);
   return null;
 }
 
+/** @private */
 function iter(key, value) {
   var valueProvided = arguments.length === 2;
 
@@ -36,6 +39,7 @@ function iter(key, value) {
   return i ;
 }
 
+/** @private */
 function xform(target, method, params) {
   method.call(target, params[0], params[2], params[3]);
 }
@@ -105,7 +109,7 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     reaches the your current length-1.  If you run out of data before this
     time for some reason, you should simply return undefined.
 
-    The default impementation of this method simply looks up the index.
+    The default implementation of this method simply looks up the index.
     This works great on any Array-like objects.
 
     @param index {Number} the current index of the iteration
@@ -125,14 +129,13 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     contains only one object, this method should always return that object.
     If your enumerable is empty, this method should return undefined.
 
+        var arr = ["a", "b", "c"];
+        arr.firstObject(); => "a"
+
+        var arr = [];
+        arr.firstObject(); => undefined
+
     @returns {Object} the object or undefined
-
-    @example
-    var arr = ["a", "b", "c"];
-    arr.firstObject(); => "a"
-
-    var arr = [];
-    arr.firstObject(); => undefined
   */
   firstObject: Ember.computed(function() {
     if (get(this, 'length')===0) return undefined ;
@@ -143,21 +146,20 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     ret = this.nextObject(0, null, context);
     pushCtx(context);
     return ret ;
-  }).property(),
+  }).property().volatile(),
 
   /**
     Helper method returns the last object from a collection. If your enumerable
     contains only one object, this method should always return that object.
     If your enumerable is empty, this method should return undefined.
 
+        var arr = ["a", "b", "c"];
+        arr.lastObject(); => "c"
+
+        var arr = [];
+        arr.lastObject(); => undefined
+
     @returns {Object} the last object or undefined
-
-    @example
-    var arr = ["a", "b", "c"];
-    arr.lastObject(); => "c"
-
-    var arr = [];
-    arr.lastObject(); => undefined
   */
   lastObject: Ember.computed(function() {
     var len = get(this, 'length');
@@ -173,12 +175,16 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
       pushCtx(context);
       return last;
     }
-  }).property(),
+  }).property().volatile(),
 
   /**
     Returns true if the passed object can be found in the receiver.  The
     default version will iterate through the enumerable until the object
     is found.  You may want to override this with a more efficient version.
+
+        var arr = ["a", "b", "c"];
+        arr.contains("a"); => true
+        arr.contains("z"); => false
 
     @param {Object} obj
       The object to search for.
@@ -566,10 +572,12 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
   },
 
   /**
-    Generates a new array with the contents of the old array, sans any null
-    values.
+    Returns a copy of the array with all null elements removed.
+    
+        var arr = ["a", null, "c", null];
+        arr.compact(); => ["a", "c"] 
 
-    @returns {Array}
+    @returns {Array} the array without null elements.
   */
   compact: function() { return this.without(null); },
 
@@ -577,6 +585,9 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
     Returns a new enumerable that excludes the passed value.  The default
     implementation returns an array regardless of the receiver type unless
     the receiver does not contain the value.
+
+        var arr = ["a", "b", "a", "c"];
+        arr.without("a"); => ["b", "c"]
 
     @param {Object} value
     @returns {Ember.Enumerable}
@@ -593,6 +604,9 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
   /**
     Returns a new enumerable that contains only unique values.  The default
     implementation returns an array regardless of the receiver type.
+
+        var arr = ["a", "a", "b", "b"];
+        arr.uniq(); => ["a", "b"]
 
     @returns {Ember.Enumerable}
   */
@@ -720,7 +734,7 @@ Ember.Enumerable = Ember.Mixin.create( /** @lends Ember.Enumerable */ {
 
     @param {Enumerable} removes
       optional enumerable containing items that were removed from the set.
-      For ordered enumerables, this hsould be an ordered array of items. If
+      For ordered enumerables, this should be an ordered array of items. If
       no items were removed you can pass null.
 
     @returns {Object} receiver

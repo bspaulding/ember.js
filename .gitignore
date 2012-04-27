@@ -5,6 +5,7 @@
 .bpm
 .bundle
 .config
+.github-upload-token
 .yardoc
 .rvmrc
 InstalledFiles
@@ -16,9 +17,7 @@ assets/bpm_styles.css
 bin/
 coverage
 dist
-doc/
-docs/jsdoc
-docs/output
+docs
 lib/*/tests/all.js
 lib/*/tests/qunit*
 lib/bundler/man
@@ -29,8 +28,9 @@ spec/reports
 test/tmp
 test/version_tmp
 test_*.html
-/tests/source
+/tests/ember-tests.js
 tmp
 tmp*.gem
 tmp.bpm
 tmp.spade
+tests/source

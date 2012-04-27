@@ -169,6 +169,7 @@ var WATCHED_DESC = {
   set: Ember.Descriptor.MUST_USE_SETTER
 };
 
+/** @private */
 function w_get(obj, keyName, values) {
   values = values || meta(obj, false).values;
 
@@ -180,6 +181,7 @@ function w_get(obj, keyName, values) {
 
 }
 
+/** @private */
 function w_set(obj, keyName, value) {
   var m = meta(obj), watching;
 
@@ -191,6 +193,7 @@ function w_set(obj, keyName, value) {
 }
 
 var WATCHED_GETTERS = {};
+/** @private */
 function mkWatchedGetter(keyName) {
   var ret = WATCHED_GETTERS[keyName];
   if (!ret) {
@@ -202,6 +205,7 @@ function mkWatchedGetter(keyName) {
 }
 
 var WATCHED_SETTERS = {};
+/** @private */
 function mkWatchedSetter(keyName) {
   var ret = WATCHED_SETTERS[keyName];
   if (!ret) {
@@ -281,6 +285,7 @@ SIMPLE_PROPERTY.watched   = WATCHED_PROPERTY.watched   = WATCHED_PROPERTY;
 // DEFINING PROPERTIES API
 //
 
+/** @private */
 function hasDesc(descs, keyName) {
   if (keyName === 'toString') return 'function' !== typeof descs.toString;
   else return !!descs[keyName];
@@ -358,7 +363,7 @@ Ember.defineProperty = function(obj, keyName, desc, val) {
   that support it, this uses the built in Object.create method.  Else one is
   simulated for you.
 
-  This method is a better choice thant Object.create() because it will make
+  This method is a better choice than Object.create() because it will make
   sure that any observers, event listeners, and computed properties are
   inherited from the parent as well.
 

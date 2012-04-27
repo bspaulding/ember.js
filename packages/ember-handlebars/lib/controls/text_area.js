@@ -20,16 +20,17 @@ Ember.TextArea = Ember.View.extend(Ember.TextSupport,
   classNames: ['ember-text-area'],
 
   tagName: "textarea",
-
-  /**
-    @private
-  */
-  didInsertElement: function() {
-    this._updateElementValue();
-  },
+  attributeBindings: ['rows', 'cols'],
+  rows: null,
+  cols: null,
 
   _updateElementValue: Ember.observer(function() {
     this.$().val(get(this, 'value'));
-  }, 'value')
+  }, 'value'),
+
+  init: function() {
+    this._super();
+    this.on("didInsertElement", this, this._updateElementValue);
+  }
 
 });

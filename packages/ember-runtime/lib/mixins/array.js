@@ -13,10 +13,12 @@ require('ember-runtime/mixins/enumerable');
 // HELPERS
 //
 
-var get = Ember.get, set = Ember.set, meta = Ember.meta;
+var get = Ember.get, set = Ember.set, meta = Ember.meta, map = Ember.ArrayUtils.map;
 
+/** @private */
 function none(obj) { return obj===null || obj===undefined; }
 
+/** @private */
 function xform(target, method, params) {
   method.call(target, params[0], params[2], params[3], params[4]);
 }
@@ -84,6 +86,17 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
     return get(this, idx);
   },
 
+  /**
+    This returns the objects at the specified indexes, using objectAt.
+
+    @param {Array} indexes
+      An array of indexes of items to return.
+   */
+  objectsAt: function(indexes) {
+    var self = this;
+    return map(indexes, function(idx){ return self.objectAt(idx); });
+  },
+
   /** @private (nodoc) - overrides Ember.Enumerable version */
   nextObject: function(idx) {
     return this.objectAt(idx);
@@ -114,6 +127,11 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
     uses the observable array methods to retrieve the objects for the new
     slice.
 
+        var arr = ['red', 'green', 'blue'];
+        arr.slice(0);      => ['red', 'green', 'blue']
+        arr.slice(0, 2);   => ['red', 'green']
+        arr.slice(1, 100); => ['green', 'blue']
+
     @param beginIndex {Integer} (Optional) index to begin slicing from.
     @param endIndex {Integer} (Optional) index to end the slice at.
     @returns {Array} New array with specified slice
@@ -135,18 +153,17 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
     search is 0. If it's negative, will count backward from
     the end of the array. Returns -1 if no match is found.
 
+        var arr = ["a", "b", "c", "d", "a"];
+        arr.indexOf("a");      =>  0
+        arr.indexOf("z");      => -1
+        arr.indexOf("a", 2);   =>  4
+        arr.indexOf("a", -1);  =>  4
+        arr.indexOf("b", 3);   => -1
+        arr.indexOf("a", 100); => -1
+
     @param {Object} object the item to search for
     @param {Number} startAt optional starting location to search, default 0
     @returns {Number} index or -1 if not found
-
-    @example
-    var arr = ["a", "b", "c", "d", "a"];
-    arr.indexOf("a");      =>  0
-    arr.indexOf("z");      => -1
-    arr.indexOf("a", 2);   =>  4
-    arr.indexOf("a", -1);  =>  4
-    arr.indexOf("b", 3);   => -1
-    arr.indexOf("a", 100); => -1
   */
   indexOf: function(object, startAt) {
     var idx, len = get(this, 'length');
@@ -166,18 +183,17 @@ Ember.Array = Ember.Mixin.create(Ember.Enumerable, /** @scope Ember.Array.protot
     the last position. If it's negative, will count backward
     from the end of the array. Returns -1 if no match is found.
 
+        var arr = ["a", "b", "c", "d", "a"];
+        arr.lastIndexOf("a");      =>  4
+        arr.lastIndexOf("z");      => -1
+        arr.lastIndexOf("a", 2);   =>  0
+        arr.lastIndexOf("a", -1);  =>  4
+        arr.lastIndexOf("b", 3);   =>  1
+        arr.lastIndexOf("a", 100); =>  4
+
     @param {Object} object the item to search for
     @param {Number} startAt optional starting location to search, default 0
     @returns {Number} index or -1 if not found
-
-    @example
-    var arr = ["a", "b", "c", "d", "a"];
-    arr.lastIndexOf("a");      =>  4
-    arr.lastIndexOf("z");      => -1
-    arr.lastIndexOf("a", 2);   =>  0
-    arr.lastIndexOf("a", -1);  =>  4
-    arr.lastIndexOf("b", 3);   =>  1
-    arr.lastIndexOf("a", 100); =>  4
   */
   lastIndexOf: function(object, startAt) {
     var idx, len = get(this, 'length');

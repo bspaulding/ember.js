@@ -75,6 +75,7 @@ Ember.EMPTY_PLACEHOLDER = '@@EMPTY@@';
 //
 
 // Coerces a non-array value into an array.
+/** @private */
 function MULTIPLE(val) {
   if (val instanceof Array) return val;
   if (val === undefined || val === null) return [];
@@ -83,6 +84,7 @@ function MULTIPLE(val) {
 
 // Treats a single-element array as the element. Otherwise
 // returns a placeholder.
+/** @private */
 function SINGLE(val, placeholder) {
   if (val instanceof Array) {
     if (val.length>1) return placeholder;
@@ -113,6 +115,7 @@ var get     = Ember.get,
     isGlobalPath = Ember.isGlobalPath;
 
 // Applies a binding's transformations against a value.
+/** @private */
 function getTransformedValue(binding, val, obj, dir) {
 
   // First run a type transform, if it exists, that changes the fundamental
@@ -134,14 +137,17 @@ function getTransformedValue(binding, val, obj, dir) {
   return val;
 }
 
+/** @private */
 function empty(val) {
   return val===undefined || val===null || val==='' || (Ember.isArray(val) && get(val, 'length')===0) ;
 }
 
+/** @private */
 function getPathWithGlobals(obj, path) {
   return getPath(isGlobalPath(path) ? window : obj, path);
 }
 
+/** @private */
 function getTransformedFromValue(obj, binding) {
   var operation = binding._operation,
       fromValue;
@@ -153,15 +159,18 @@ function getTransformedFromValue(obj, binding) {
   return getTransformedValue(binding, fromValue, obj, 'to');
 }
 
+/** @private */
 function getTransformedToValue(obj, binding) {
   var toValue = getPath(obj, binding._to);
   return getTransformedValue(binding, toValue, obj, 'from');
 }
 
+/** @private */
 var AND_OPERATION = function(obj, left, right) {
   return getPathWithGlobals(obj, left) && getPathWithGlobals(obj, right);
 };
 
+/** @private */
 var OR_OPERATION = function(obj, left, right) {
   return getPathWithGlobals(obj, left) || getPathWithGlobals(obj, right);
 };
@@ -169,8 +178,10 @@ var OR_OPERATION = function(obj, left, right) {
 // ..........................................................
 // BINDING
 //
-
+/** @private */
 var K = function() {};
+
+/** @private */
 var Binding = function(toPath, fromPath) {
   var self;
 
@@ -216,7 +227,7 @@ Binding.prototype = /** @scope Ember.Binding.prototype */ {
 
   /**
     This will set the "to" property path to the specified value. It will not
-    attempt to reoslve this property path to an actual object until you
+    attempt to resolve this property path to an actual object until you
     connect the binding.
 
     The binding will search for the property path starting at the root object
@@ -523,26 +534,34 @@ Binding.prototype = /** @scope Ember.Binding.prototype */ {
 
     delete this[guid];
 
-    // apply any operations to the object, then apply transforms
-    var fromValue = getTransformedFromValue(obj, this);
-    var toValue   = getTransformedToValue(obj, this);
-
-    if (toValue === fromValue) { return; }
-
     // if we're synchronizing from the remote object...
     if (direction === 'fwd') {
-      if (log) { Ember.Logger.log(' ', this.toString(), toValue, '->', fromValue, obj); }
-      Ember.trySetPath(Ember.isGlobalPath(toPath) ? window : obj, toPath, fromValue);
-
+      var fromValue = getTransformedFromValue(obj, this);
+      if (log) {
+        Ember.Logger.log(' ', this.toString(), '->', fromValue, obj);
+      }
+      if (this._oneWay) {
+        Ember.trySetPath(Ember.isGlobalPath(toPath) ? window : obj, toPath, fromValue);
+      } else {
+        Ember._suspendObserver(obj, toPath, this, this.toDidChange, function () {
+          Ember.trySetPath(Ember.isGlobalPath(toPath) ? window : obj, toPath, fromValue);
+        });
+      }
     // if we're synchronizing *to* the remote object
     } else if (direction === 'back') {// && !this._oneWay) {
-      if (log) { Ember.Logger.log(' ', this.toString(), toValue, '<-', fromValue, obj); }
-      Ember.trySetPath(Ember.isGlobalPath(fromPath) ? window : obj, fromPath, toValue);
+      var toValue = getTransformedToValue(obj, this);
+      if (log) {
+        Ember.Logger.log(' ', this.toString(), '<-', toValue, obj);
+      }
+      Ember._suspendObserver(obj, fromPath, this, this.fromDidChange, function () {
+        Ember.trySetPath(Ember.isGlobalPath(fromPath) ? window : obj, fromPath, toValue);
+      });
     }
   }
 
 };
 
+/** @private */
 function mixinProperties(to, from) {
   for (var key in from) {
     if (from.hasOwnProperty(key)) {
@@ -581,9 +600,9 @@ mixinProperties(Binding,
   /**
     @see Ember.Binding.prototype.single
   */
-  single: function(from) {
+  single: function(from, placeholder) {
     var C = this, binding = new C(null, from);
-    return binding.single();
+    return binding.single(placeholder);
   },
 
   /**
@@ -597,8 +616,12 @@ mixinProperties(Binding,
   /**
     @see Ember.Binding.prototype.transform
   */
-  transform: function(func) {
-    var C = this, binding = new C();
+  transform: function(from, func) {
+    if (!func) {
+      func = from;
+      from = null;
+    }
+    var C = this, binding = new C(null, from);
     return binding.transform(func);
   },
 
@@ -609,6 +632,15 @@ mixinProperties(Binding,
     var C = this, binding = new C(null, from);
     return binding.notEmpty(placeholder);
   },
+
+  /**
+    @see Ember.Binding.prototype.notNull
+  */
+  notNull: function(from, placeholder) {
+    var C = this, binding = new C(null, from);
+    return binding.notNull(placeholder);
+  },
+
 
   /**
     @see Ember.Binding.prototype.bool
@@ -624,6 +656,14 @@ mixinProperties(Binding,
   not: function(from) {
     var C = this, binding = new C(null, from);
     return binding.not();
+  },
+
+  /**
+    @see Ember.Binding.prototype.isNull
+  */
+  isNull: function(from) {
+    var C = this, binding = new C(null, from);
+    return binding.isNull();
   },
 
   /**

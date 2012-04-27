@@ -15,49 +15,63 @@ var rewatch = Ember.rewatch;
 var classToString = Ember.Mixin.prototype.toString;
 var set = Ember.set, get = Ember.get;
 var o_create = Ember.platform.create,
+    o_defineProperty = Ember.platform.defineProperty,
+    a_slice = Array.prototype.slice,
     meta = Ember.meta;
 
+/** @private */
 function makeCtor() {
 
   // Note: avoid accessing any properties on the object since it makes the
   // method a lot faster.  This is glue code so we want it to be as fast as
   // possible.
 
-  var isPrepared = false, initMixins, init = false, hasChains = false;
+  var wasApplied = false, initMixins, init = false, hasChains = false;
 
   var Class = function() {
-    if (!isPrepared) { get(Class, 'proto'); } // prepare prototype...
+    if (!wasApplied) { Class.proto(); } // prepare prototype...
     if (initMixins) {
       this.reopen.apply(this, initMixins);
       initMixins = null;
-      rewatch(this); // ålways rewatch just in case
+      rewatch(this); // always rewatch just in case
       this.init.apply(this, arguments);
     } else {
       if (hasChains) {
         rewatch(this);
       } else {
-        this[Ember.GUID_KEY] = undefined;
+        Ember.GUID_DESC.value = undefined;
+        o_defineProperty(this, Ember.GUID_KEY, Ember.GUID_DESC);
       }
       if (init===false) { init = this.init; } // cache for later instantiations
+      Ember.GUID_DESC.value = undefined;
+      o_defineProperty(this, '_super', Ember.GUID_DESC);
       init.apply(this, arguments);
     }
   };
 
   Class.toString = classToString;
-  Class._prototypeMixinDidChange = function() {
-    ember_assert("Reopening already instantiated classes is not supported. We plan to support this in the future.", isPrepared === false);
-    isPrepared = false;
+  Class.willReopen = function() {
+    if (wasApplied) {
+      Class.PrototypeMixin = Ember.Mixin.create(Class.PrototypeMixin);
+    }
+
+    wasApplied = false;
   };
   Class._initMixins = function(args) { initMixins = args; };
 
-  Ember.defineProperty(Class, 'proto', Ember.computed(function() {
-    if (!isPrepared) {
-      isPrepared = true;
+  Class.proto = function() {
+    var superclass = Class.superclass;
+    if (superclass) { superclass.proto(); }
+
+    if (!wasApplied) {
+      wasApplied = true;
       Class.PrototypeMixin.applyPartial(Class.prototype);
+      Ember.rewatch(Class.prototype); // setup watch chains if needed.
       hasChains = !!meta(Class.prototype, false).chains; // avoid rewatch
     }
+
     return this.prototype;
-  }));
+  };
 
   return Class;
 
@@ -75,9 +89,14 @@ CoreObject.PrototypeMixin = Ember.Mixin.create(
 
   isInstance: true,
 
+  /** @private */
   init: function() {},
 
+  /** @field */
   isDestroyed: false,
+
+  /** @field */
+  isDestroying: false,
 
   /**
     Destroys an object by setting the isDestroyed flag and removing its
@@ -92,6 +111,12 @@ CoreObject.PrototypeMixin = Ember.Mixin.create(
     @returns {Ember.Object} receiver
   */
   destroy: function() {
+    if (this.isDestroying) { return; }
+
+    this.isDestroying = true;
+
+    if (this.willDestroy) { this.willDestroy(); }
+
     set(this, 'isDestroyed', true);
     Ember.run.schedule('destroy', this, this._scheduledDestroy);
     return this;
@@ -105,6 +130,7 @@ CoreObject.PrototypeMixin = Ember.Mixin.create(
   */
   _scheduledDestroy: function() {
     Ember.destroy(this);
+    if (this.didDestroy) { this.didDestroy(); }
   },
 
   bind: function(to, from) {
@@ -148,7 +174,6 @@ var ClassMixin = Ember.Mixin.create({
     proto.constructor = Class;
     Ember.generateGuid(proto, 'ember');
     meta(proto).proto = proto; // this will disable observers on prototype
-    Ember.rewatch(proto); // setup watch chains if needed.
 
 
     Class.subclasses = Ember.Set ? new Ember.Set() : null;
@@ -165,9 +190,9 @@ var ClassMixin = Ember.Mixin.create({
   },
 
   reopen: function() {
+    this.willReopen();
     var PrototypeMixin = this.PrototypeMixin;
     PrototypeMixin.reopen.apply(PrototypeMixin, arguments);
-    this._prototypeMixinDidChange();
     return this;
   },
 
@@ -188,7 +213,7 @@ var ClassMixin = Ember.Mixin.create({
   },
 
   detectInstance: function(obj) {
-    return this.PrototypeMixin.detect(obj);
+    return obj instanceof this;
   },
 
   /**
@@ -212,7 +237,7 @@ var ClassMixin = Ember.Mixin.create({
     This will return the original hash that was passed to `meta()`.
   */
   metaForProperty: function(key) {
-    var desc = meta(get(this, 'proto'), false).descs[key];
+    var desc = meta(this.proto(), false).descs[key];
 
     ember_assert("metaForProperty() could not find a computed property with key '"+key+"'.", !!desc && desc instanceof Ember.ComputedProperty);
     return desc._meta || {};
@@ -223,7 +248,7 @@ var ClassMixin = Ember.Mixin.create({
     and any associated metadata (see `metaForProperty`) to the callback.
   */
   eachComputedProperty: function(callback, binding) {
-    var proto = get(this, 'proto'),
+    var proto = this.proto(),
         descs = meta(proto).descs,
         empty = {},
         property;
