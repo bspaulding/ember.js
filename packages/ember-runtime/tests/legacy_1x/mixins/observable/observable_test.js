@@ -8,7 +8,7 @@
 /*global Namespace:true DepObj:true*/
 
 var get = Ember.get, set = Ember.set;
-var forEach = Ember.ArrayUtils.forEach;
+var forEach = Ember.EnumerableUtils.forEach;
 
 /*
   NOTE: This test is adapted from the 1.x series of unit tests.  The tests
@@ -169,7 +169,6 @@ test("raise if the provided object is undefined", function() {
 
 test("should work when object is Ember (used in Ember.getPath)", function() {
   equal(Ember.getPath('Ember.RunLoop'), Ember.RunLoop, 'Ember.getPath');
-  equal(Ember.get('RunLoop'), Ember.RunLoop, 'Ember.get(RunLoop)');
   equal(Ember.get(Ember, 'RunLoop'), Ember.RunLoop, 'Ember.get(Ember, RunLoop)');
 });
 
@@ -549,79 +548,87 @@ test("dependent keys should be able to be specified as property paths", function
 });
 
 test("nested dependent keys should propagate after they update", function() {
-  window.DepObj = ObservableObject.create({
-    restaurant: ObservableObject.create({
-      menu: ObservableObject.create({
-        price: 5
-      })
-    }),
+  var bindObj;
+  Ember.run(function () {
+    window.DepObj = ObservableObject.create({
+      restaurant: ObservableObject.create({
+        menu: ObservableObject.create({
+          price: 5
+        })
+      }),
 
-    price: Ember.computed(function() {
-      return this.getPath('restaurant.menu.price');
-    }).property('restaurant.menu.price').volatile()
+      price: Ember.computed(function() {
+        return this.getPath('restaurant.menu.price');
+      }).property('restaurant.menu.price').volatile()
+    });
+
+    bindObj = ObservableObject.create({
+      priceBinding: "DepObj.price"
+    });
   });
-
-  var bindObj = ObservableObject.create({
-    priceBinding: "DepObj.price"
-  });
-
-  Ember.run.sync();
 
   equal(bindObj.get('price'), 5, "precond - binding propagates");
 
-  DepObj.setPath('restaurant.menu.price', 10);
-
-  Ember.run.sync();
+  Ember.run(function () {
+    DepObj.setPath('restaurant.menu.price', 10);
+  });
 
   equal(bindObj.get('price'), 10, "binding propagates after a nested dependent keys updates");
 
-  DepObj.setPath('restaurant.menu', ObservableObject.create({
-    price: 15
-  }));
-
-  Ember.run.sync();
+  Ember.run(function () {
+    DepObj.setPath('restaurant.menu', ObservableObject.create({
+      price: 15
+    }));
+  });
 
   equal(bindObj.get('price'), 15, "binding propagates after a middle dependent keys updates");
 });
 
 test("cacheable nested dependent keys should clear after their dependencies update", function() {
-  window.DepObj = ObservableObject.create({
-    restaurant: ObservableObject.create({
-      menu: ObservableObject.create({
-        price: 5
-      })
-    }),
-
-    price: Ember.computed(function() {
-      return this.getPath('restaurant.menu.price');
-    }).property('restaurant.menu.price').cacheable()
+  ok(true);
+  
+  Ember.run(function(){
+    window.DepObj = ObservableObject.create({
+      restaurant: ObservableObject.create({
+        menu: ObservableObject.create({
+          price: 5
+        })
+      }),
+    
+      price: Ember.computed(function() {
+        return this.getPath('restaurant.menu.price');
+      }).property('restaurant.menu.price').cacheable()
+    });
   });
-
-  Ember.run.sync();
-
+  
   equal(DepObj.get('price'), 5, "precond - computed property is correct");
-
-  DepObj.setPath('restaurant.menu.price', 10);
-
+  
+  Ember.run(function(){
+    DepObj.setPath('restaurant.menu.price', 10);
+  });
   equal(DepObj.get('price'), 10, "cacheable computed properties are invalidated even if no run loop occurred");
-  DepObj.setPath('restaurant.menu.price', 20);
-
+  
+  Ember.run(function(){
+    DepObj.setPath('restaurant.menu.price', 20);
+  });
   equal(DepObj.get('price'), 20, "cacheable computed properties are invalidated after a second get before a run loop");
-
-  Ember.run.sync();
-
   equal(DepObj.get('price'), 20, "precond - computed properties remain correct after a run loop");
-
-  DepObj.setPath('restaurant.menu', ObservableObject.create({
-    price: 15
-  }));
-
+  
+  Ember.run(function(){
+    DepObj.setPath('restaurant.menu', ObservableObject.create({
+      price: 15
+    }));
+  });
+  
+  
   equal(DepObj.get('price'), 15, "cacheable computed properties are invalidated after a middle property changes");
-
-  DepObj.setPath('restaurant.menu', ObservableObject.create({
-    price: 25
-  }));
-
+  
+  Ember.run(function(){
+    DepObj.setPath('restaurant.menu', ObservableObject.create({
+      price: 25
+    }));
+  });
+  
   equal(DepObj.get('price'), 25, "cacheable computed properties are invalidated after a middle property changes again, before a run loop");
 });
 
@@ -663,10 +670,11 @@ module("Observable objects & object properties ", {
 
       testArrayObserver: Ember.observer(function(){
         this.abnormal = 'notifiedObserver';
-      }, 'normalArray.@each')
+      }, 'normalArray.[]')
 
     });
   }
+
 });
 
 test('incrementProperty and decrementProperty',function(){
@@ -848,14 +856,16 @@ module("Bind function ", {
 
 test("should bind property with method parameter as undefined", function() {
   // creating binding
-  objectA.bind("name", "Namespace.objectB.normal",undefined) ;
-  Ember.run.sync() ; // actually sets up up the binding
-
+  Ember.run(function(){
+    objectA.bind("name", "Namespace.objectB.normal",undefined) ;
+  });
+  
   // now make a change to see if the binding triggers.
-  objectB.set("normal", "changedValue") ;
-
+  Ember.run(function(){
+    objectB.set("normal", "changedValue") ;
+  });
+  
   // support new-style bindings if available
-  Ember.run.sync();
   equal("changedValue", objectA.get("name"), "objectA.name is binded");
 });
 

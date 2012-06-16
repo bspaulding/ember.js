@@ -18,9 +18,12 @@
   `Ember.Map.create()` for symmetry with other Ember classes.
 */
 
+require('ember-metal/array');
+require('ember-metal/utils');
+
 /** @private */
-var guidFor = Ember.guidFor;
-var indexOf = Ember.ArrayUtils.indexOf;
+var guidFor = Ember.guidFor,
+    indexOf = Ember.ArrayPolyfills.indexOf;
 
 // This class is used internally by Ember.js and Ember Data.
 // Please do not use it at this time. We plan to clean it up
@@ -57,7 +60,7 @@ OrderedSet.prototype = {
 
     delete presenceSet[guid];
 
-    var index = indexOf(list, obj);
+    var index = indexOf.call(list, obj);
     if (index > -1) {
       list.splice(index, 1);
     }
@@ -195,3 +198,4 @@ Map.prototype = {
     });
   }
 };
+

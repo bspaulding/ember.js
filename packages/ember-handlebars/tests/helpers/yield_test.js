@@ -1,5 +1,5 @@
 // ==========================================================================
-// Project:   Ember Handlebar Views
+// Project:   Ember Handlebars Views
 // Copyright: ©2011 Strobe Inc. and contributors.
 // License:   Licensed under MIT license (see license.js)
 // ==========================================================================
@@ -14,9 +14,12 @@ module("Support for {{yield}} helper (#307)", {
     window.TemplateTests = Ember.Namespace.create();
   },
   teardown: function() {
-    if (view) {
-      view.destroy();
-    }
+    Ember.run(function(){
+      if (view) {
+        view.destroy();
+      }}
+    );
+
 
     window.TemplateTests = undefined;
   }

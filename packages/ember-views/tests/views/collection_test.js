@@ -6,7 +6,7 @@
 // ==========================================================================
 
 var set = Ember.set, get = Ember.get;
-var forEach = Ember.ArrayUtils.forEach;
+var forEach = Ember.EnumerableUtils.forEach;
 var view;
 
 module("Ember.CollectionView", {
@@ -15,7 +15,9 @@ module("Ember.CollectionView", {
   },
   teardown: function() {
     delete Ember.CollectionView.CONTAINER_MAP.del;
-    if (view) { view.destroy(); }
+    Ember.run(function(){
+      if (view) { view.destroy(); }
+    });
   }
 });
 
@@ -177,11 +179,11 @@ test("should allow changes to content object before layer is created", function(
     content: null
   });
 
-  set(view, 'content', Ember.A());
-  set(view, 'content', Ember.A([1, 2, 3]));
-  set(view, 'content', Ember.A([1, 2]));
 
   Ember.run(function() {
+    set(view, 'content', Ember.A());
+    set(view, 'content', Ember.A([1, 2, 3]));
+    set(view, 'content', Ember.A([1, 2]));
     view.append();
   });
 

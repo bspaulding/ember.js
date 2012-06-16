@@ -5,7 +5,7 @@
 // ==========================================================================
 
 var set = Ember.set, get = Ember.get, getPath = Ember.getPath;
-var indexOf = Ember.ArrayUtils.indexOf;
+var indexOf = Ember.EnumerableUtils.indexOf;
 
 // .......................................................
 // removeChild()
@@ -68,7 +68,9 @@ test("removes view from parent view", function() {
   var child = getPath(parentView, 'childViews').objectAt(0);
   ok(get(child, 'parentView'), 'precond - has parentView');
 
-  parentView.createElement();
+  Ember.run(function(){
+    parentView.createElement();
+  });
 
   ok(parentView.$('div').length, "precond - has a child DOM element");
 

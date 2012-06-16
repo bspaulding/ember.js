@@ -18,8 +18,10 @@ module("the #each helper", {
   },
 
   teardown: function() {
-    view.destroy();
-    view = null;
+    Ember.run(function(){
+      view.destroy();
+      view = null;
+    });
   }
 });
 
@@ -148,3 +150,45 @@ test("it works with the controller keyword", function() {
 
   equal(view.$().text(), "foobarbaz");
 });
+
+if (Ember.VIEW_PRESERVES_CONTEXT) {
+
+  module("{{#each foo in bar}}");
+
+  test("#each accepts a name binding and does not change the context", function() {
+    view = Ember.View.create({
+      template: templateFor("{{#each item in items}}{{title}} {{item}}{{/each}}"),
+      title: "My Cool Each Test",
+      items: Ember.A([1, 2])
+    });
+
+    append(view);
+
+    equal(view.$().text(), "My Cool Each Test 1My Cool Each Test 2");
+  });
+
+  test("#each accepts a name binding and can display child properties", function() {
+    view = Ember.View.create({
+      template: templateFor("{{#each item in items}}{{title}} {{item.name}}{{/each}}"),
+      title: "My Cool Each Test",
+      items: Ember.A([{ name: 1 }, { name: 2 }])
+    });
+
+    append(view);
+
+    equal(view.$().text(), "My Cool Each Test 1My Cool Each Test 2");
+  });
+
+  test("#each accepts 'this' as the right hand side", function() {
+    view = Ember.View.create({
+      template: templateFor("{{#each item in this}}{{view.title}} {{item.name}}{{/each}}"),
+      title: "My Cool Each Test",
+      controller: Ember.A([{ name: 1 }, { name: 2 }])
+    });
+
+    append(view);
+
+    equal(view.$().text(), "My Cool Each Test 1My Cool Each Test 2");
+  });
+
+}
