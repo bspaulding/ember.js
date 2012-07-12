@@ -1,19 +1,12 @@
-var get = Ember.get, set = Ember.set, a_slice = Array.prototype.slice;
+/**
+ @class
 
-/** @private */
-function xform(target, method, params) {
-  var args = a_slice.call(params, 2);
-  method.apply(target, args);
-}
-
-Ember.Evented = Ember.Mixin.create({
+ @extends Ember.Mixin
+ */
+Ember.Evented = Ember.Mixin.create(
+  /** @scope Ember.Evented.prototype */ {
   on: function(name, target, method) {
-    if (!method) {
-      method = target;
-      target = null;
-    }
-
-    Ember.addListener(this, name, target, method, xform);
+    Ember.addListener(this, name, target, method);
   },
 
   one: function(name, target, method) {
@@ -36,7 +29,11 @@ Ember.Evented = Ember.Mixin.create({
   },
 
   trigger: function(name) {
-   Ember.sendEvent.apply(null, [this, name].concat(a_slice.call(arguments, 1)));
+    var args = [], i, l;
+    for (i = 1, l = arguments.length; i < l; i++) {
+      args.push(arguments[i]);
+    }
+    Ember.sendEvent(this, name, args);
   },
 
   fire: function(name) {

@@ -8,10 +8,9 @@ require('ember-metal/core');
 require('ember-metal/platform');
 require('ember-metal/utils');
 
-var USE_ACCESSORS = Ember.platform.hasPropertyAccessors && Ember.ENV.USE_ACCESSORS;
-Ember.USE_ACCESSORS = !!USE_ACCESSORS;
+var META_KEY = Ember.META_KEY, get, set;
 
-var meta = Ember.meta;
+var MANDATORY_SETTER = Ember.ENV.MANDATORY_SETTER;
 
 // ..........................................................
 // GET AND SET
@@ -20,53 +19,62 @@ var meta = Ember.meta;
 // Otherwise simulate accessors by looking up the property directly on the
 // object.
 
-var get, set;
-
 /** @private */
-var basicGet = function get(obj, keyName) {
-  var ret = obj[keyName];
-  if (ret !== undefined) { return ret; }
-
-  // if the property's value is undefined and the object defines
-  // unknownProperty, invoke unknownProperty
-  if ('function' === typeof obj.unknownProperty) {
-    return obj.unknownProperty(keyName);
-  }
-};
-
-/** @private */
-var basicSet = function set(obj, keyName, value) {
-  var isObject = 'object' === typeof obj;
-  var hasProp = isObject && !(keyName in obj);
-
-  // setUnknownProperty is called if `obj` is an object,
-  // the property does not already exist, and the
-  // `setUnknownProperty` method exists on the object
-  var unknownProp = hasProp && 'function' === typeof obj.setUnknownProperty;
-
-  if (unknownProp) {
-    obj.setUnknownProperty(keyName, value);
-  } else {
-    obj[keyName] = value;
-  }
-};
-
-/** @private */
-get = function(obj, keyName) {
+get = function get(obj, keyName) {
   Ember.assert("You need to provide an object and key to `get`.", !!obj && keyName);
+  var meta = obj[META_KEY], desc = meta && meta.descs[keyName], ret;
+  if (desc) {
+    return desc.get(obj, keyName);
+  } else {
+    var isUnknown = 'object' === typeof obj && !(keyName in obj);
 
-  var desc = meta(obj, false).descs[keyName];
-  if (desc) { return desc.get(obj, keyName); }
-  else { return basicGet(obj, keyName); }
+    if (isUnknown && 'function' === typeof obj.unknownProperty) {
+      return obj.unknownProperty(keyName);
+    }
+
+    if (MANDATORY_SETTER && meta && meta.watching[keyName] > 0) { return meta.values[keyName]; }
+    return obj[keyName];
+  }
 };
 
 /** @private */
-set = function(obj, keyName, value) {
+set = function set(obj, keyName, value) {
   Ember.assert("You need to provide an object and key to `set`.", !!obj && keyName !== undefined);
+  Ember.assert('calling set on destroyed object', !obj.isDestroyed);
 
-  var desc = meta(obj, false).descs[keyName];
-  if (desc) { desc.set(obj, keyName, value); }
-  else { basicSet(obj, keyName, value); }
+  var meta = obj[META_KEY], desc = meta && meta.descs[keyName],
+      isUnknown, currentValue;
+  if (desc) {
+    desc.set(obj, keyName, value);
+  }
+  else {
+    isUnknown = 'object' === typeof obj && !(keyName in obj);
+
+    // setUnknownProperty is called if `obj` is an object,
+    // the property does not already exist, and the
+    // `setUnknownProperty` method exists on the object
+    if (isUnknown && 'function' === typeof obj.setUnknownProperty) {
+      obj.setUnknownProperty(keyName, value);
+    } else if (meta && meta.watching[keyName] > 0) {
+      if (MANDATORY_SETTER) {
+        currentValue = meta.values[keyName];
+      } else {
+        currentValue = obj[keyName];
+      }
+      // only trigger a change if the value has changed
+      if (value !== currentValue) {
+        Ember.propertyWillChange(obj, keyName);
+        if (MANDATORY_SETTER) {
+          meta.values[keyName] = value;
+        } else {
+          obj[keyName] = value;
+        }
+        Ember.propertyDidChange(obj, keyName);
+      }
+    } else {
+      obj[keyName] = value;
+    }
+  }
   return value;
 };
 
@@ -151,7 +159,6 @@ function getPath(target, path) {
   return target;
 }
 
-var TUPLE_RET = [];
 var IS_GLOBAL = /^([A-Z$]|([0-9][A-Z$]))/;
 var IS_GLOBAL_PATH = /^([A-Z$]|([0-9][A-Z$])).*[\.\*]/;
 var HAS_THIS  = /^this[\.\*]/;
@@ -181,15 +188,8 @@ function normalizeTuple(target, path) {
   // must return some kind of path to be valid else other things will break.
   if (!path || path.length===0) throw new Error('Invalid Path');
 
-  TUPLE_RET[0] = target;
-  TUPLE_RET[1] = path;
-  return TUPLE_RET;
+  return [ target, path ];
 }
-
-/** @private */
-Ember.isGlobal = function(path) {
-  return IS_GLOBAL.test(path);
-};
 
 /**
   @private
@@ -254,7 +254,8 @@ Ember.getPath = function(root, path) {
 Ember.setPath = function(root, path, value, tolerant) {
   var keyName;
 
-  if (typeof root === 'string' && IS_GLOBAL.test(root)) {
+  if (typeof root === 'string') {
+    Ember.assert("Path '" + root + "' must be global if no root is given.", IS_GLOBAL.test(root));
     value = path;
     path = root;
     root = null;
@@ -308,5 +309,5 @@ Ember.trySetPath = function(root, path, value) {
   @returns Boolean
 */
 Ember.isGlobalPath = function(path) {
-  return !HAS_THIS.test(path) && IS_GLOBAL.test(path);
+  return IS_GLOBAL.test(path);
 };
