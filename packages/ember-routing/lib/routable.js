@@ -1,4 +1,6 @@
-var get = Ember.get, getPath = Ember.getPath;
+require('ember-routing/resolved_state');
+
+var get = Ember.get;
 
 // The Ember Routable mixin assumes the existance of a simple
 // routing shim that supports the following three behaviors:
@@ -26,6 +28,10 @@ var merge = function(original, hash) {
   }
 };
 
+/**
+  @class
+  @extends Ember.Mixin
+*/
 Ember.Routable = Ember.Mixin.create({
   init: function() {
     var redirection;
@@ -177,7 +183,7 @@ Ember.Routable = Ember.Mixin.create({
     var modelType = get(this, 'modelType');
 
     if (typeof modelType === 'string') {
-      return Ember.getPath(window, modelType);
+      return Ember.get(window, modelType);
     } else {
       return modelType;
     }
@@ -275,24 +281,17 @@ Ember.Routable = Ember.Mixin.create({
 
   /**
     @private
-
-    Once `unroute` has finished unwinding, `routePath` will be called
-    with the remainder of the route.
-
-    For example, if you were in the /posts/1/comments state, and you
-    moved into the /posts/2/comments state, `routePath` will be called
-    on the state whose path is `/posts` with the path `/2/comments`.
   */
-  routePath: function(manager, path) {
-    if (get(this, 'isLeafRoute')) { return; }
+  resolvePath: function(manager, path) {
+    if (get(this, 'isLeafRoute')) { return Ember.A(); }
 
     var childStates = get(this, 'childStates'), match;
 
     childStates = Ember.A(childStates.filterProperty('isRoutable'));
 
     childStates = childStates.sort(function(a, b) {
-      var aDynamicSegments = getPath(a, 'routeMatcher.identifiers.length'),
-          bDynamicSegments = getPath(b, 'routeMatcher.identifiers.length'),
+      var aDynamicSegments = get(a, 'routeMatcher.identifiers.length'),
+          bDynamicSegments = get(b, 'routeMatcher.identifiers.length'),
           aRoute = get(a, 'route'),
           bRoute = get(b, 'route');
 
@@ -306,7 +305,7 @@ Ember.Routable = Ember.Mixin.create({
         return aDynamicSegments - bDynamicSegments;
       }
 
-      return getPath(b, 'route.length') - getPath(a, 'route.length');
+      return get(b, 'route.length') - get(a, 'route.length');
     });
 
     var state = childStates.find(function(state) {
@@ -316,9 +315,47 @@ Ember.Routable = Ember.Mixin.create({
 
     Ember.assert("Could not find state for path " + path, !!state);
 
-    var object = state.deserialize(manager, match.hash);
-    manager.transitionTo(get(state, 'path'), object);
-    manager.send('routePath', match.remaining);
+    var resolvedState = Ember._ResolvedState.create({
+      manager: manager,
+      state: state,
+      match: match
+    });
+
+    var states = state.resolvePath(manager, match.remaining);
+
+    return Ember.A([resolvedState]).pushObjects(states);
+  },
+
+  /**
+    @private
+
+    Once `unroute` has finished unwinding, `routePath` will be called
+    with the remainder of the route.
+
+    For example, if you were in the /posts/1/comments state, and you
+    moved into the /posts/2/comments state, `routePath` will be called
+    on the state whose path is `/posts` with the path `/2/comments`.
+  */
+  routePath: function(manager, path) {
+    if (get(this, 'isLeafRoute')) { return; }
+
+    var resolvedStates = this.resolvePath(manager, path),
+        hasPromises = resolvedStates.some(function(s) { return get(s, 'hasPromise'); });
+
+    function runTransition() {
+      resolvedStates.forEach(function(rs) { rs.transition(); });
+    }
+
+    if (hasPromises) {
+      manager.transitionTo('loading');
+
+      Ember.assert('Loading state should be the child of a route', Ember.Routable.detect(get(manager, 'currentState.parentState')));
+      Ember.assert('Loading state should not be a route', !Ember.Routable.detect(get(manager, 'currentState')));
+
+      manager.handleStatePromises(resolvedStates, runTransition);
+    } else {
+      runTransition();
+    }
   },
 
   /**
@@ -331,8 +368,10 @@ Ember.Routable = Ember.Mixin.create({
     state of the state it will eventually move into.
   */
   unroutePath: function(router, path) {
+    var parentState = get(this, 'parentState');
+
     // If we're at the root state, we're done
-    if (get(this, 'parentState') === router) {
+    if (parentState === router) {
       return;
     }
 
@@ -355,8 +394,12 @@ Ember.Routable = Ember.Mixin.create({
     }
 
     // Transition to the parent and call unroute again.
-    var parentPath = get(get(this, 'parentState'), 'path');
-    router.transitionTo(parentPath);
+    router.enterState({
+      exitStates: [this],
+      enterStates: [],
+      finalState: parentState
+    });
+
     router.send('unroutePath', path);
   },
 

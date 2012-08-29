@@ -1,4 +1,4 @@
-var get = Ember.get, set = Ember.set, getPath = Ember.getPath;
+var get = Ember.get, set = Ember.set;
 
 /**
   @class
@@ -31,7 +31,7 @@ Ember.State = Ember.Object.extend(Ember.Evented,
     @readOnly
   */
   path: Ember.computed(function() {
-    var parentPath = getPath(this, 'parentState.path'),
+    var parentPath = get(this, 'parentState.path'),
         path = get(this, 'name');
 
     if (parentPath) {
@@ -201,7 +201,14 @@ Ember.State.reopenClass(
   transitionTo: function(target) {
     var event = function(stateManager, context) {
       if (Event && context instanceof Event) {
-        context = context.context;
+        if (context.hasOwnProperty('context')) {
+          context = context.context;
+        } else {
+          // If we received an event and it doesn't contain
+          // a context, don't pass along a superfluous
+          // context to the target of the event.
+          return stateManager.transitionTo(target);
+        }
       }
 
       stateManager.transitionTo(target, context);

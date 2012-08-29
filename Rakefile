@@ -9,8 +9,11 @@ end
 
 def setup_uploader(root=Dir.pwd)
   require 'github_downloads'
-  uploader = GithubDownloads::Uploader.new
-  uploader.authorize
+  uploader = nil
+  Dir.chdir(root) do
+    uploader = GithubDownloads::Uploader.new
+    uploader.authorize
+  end
   uploader
 end
 
@@ -21,6 +24,43 @@ def upload_file(uploader, filename, description, file)
   else
     puts "Failure"
   end
+end
+
+def docs_upload_task(name)
+  instance_eval <<-end_eval
+    namespace :upload do
+      file "tmp/#{name}" do
+        mkdir_p "tmp"
+
+        Dir.chdir("tmp") do
+          sh "git clone git@heroku.com:#{name}.git"
+        end
+      end
+
+      task :pull => "tmp/#{name}" do
+        Dir.chdir("tmp/#{name}") do
+          sh "git pull origin master"
+        end
+      end
+
+      task :clean => :pull do
+        rm_rf "tmp/#{name}/html"
+      end
+
+      file "tmp/#{name}/html" => ['docs:build', :clean] do
+        cp_r "docs", "tmp/#{name}/html"
+      end
+
+      task :run => "tmp/#{name}/html" do
+        Dir.chdir "tmp/#{name}" do
+          sh "git add -A html && git commit -m 'Upload generated API docs' && git push origin master"
+        end
+      end
+    end
+
+    desc "Upload docs to #{name}"
+    task :upload => 'upload:run'
+  end_eval
 end
 
 
@@ -46,6 +86,7 @@ task :clean do
   puts "Cleaning build..."
   rm_rf "dist" # Make sure even things RakeP doesn't know about are cleaned
   rm_f "tests/ember-tests.js"
+  rm_rf "tmp"
   puts "Done"
 end
 
@@ -75,22 +116,7 @@ namespace :docs do
     EmberDocs::CLI.start("generate #{doc_args} -o docs".split(' '))
   end
 
-  desc "Build and upload Ember Docs"
-  task :upload => :build do
-    raise "missing environment variable EMBER_DOCS_UPLOAD_PATH" unless ENV.has_key?('EMBER_DOCS_UPLOAD_PATH')
-    Rake::Task["docs:build"].invoke
-    upload_path = ENV['EMBER_DOCS_UPLOAD_PATH']
-    FileUtils.cd(upload_path) do
-      system "git pull"
-    end
-    FileUtils.rm_rf("#{upload_path}/html.old") if Dir.exists?("#{upload_path}/html.old")
-    FileUtils.mv("#{upload_path}/html", "#{upload_path}/html.old")
-    FileUtils.cp_r("docs", "#{upload_path}/html")
-    FileUtils.cd(upload_path) do
-      system "git add html && git commit --all -m 'Upload generated API docs' && git push heroku master"
-    end
-    FileUtils.rm_rf("#{upload_path}/html.old")
-  end
+  docs_upload_task("ember-edge-docs")
 
   desc "Remove Ember Docs"
   task :clean do
@@ -106,13 +132,14 @@ task :test, [:suite] => :dist do |t, args|
     abort "PhantomJS is not installed. Download from http://phantomjs.org"
   end
 
-  packages = Dir['packages/*/tests'].map{|p| p.split('/')[1] }
+  packages = Dir['packages/*/tests'].sort.map { |p| p.split('/')[1] }
 
   suites = {
     :default => packages.map{|p| "package=#{p}" },
     :runtime => [ "package=ember-metal,ember-runtime" ],
     :all => packages.map{|p| "package=#{p}" } +
-            ["package=all&jquery=git&nojshint=true",
+            ["package=all&jquery=1.7.2&nojshint=true",
+              "package=all&jquery=git&nojshint=true",
               "package=all&extendprototypes=true&nojshint=true",
               "package=all&extendprototypes=true&jquery=git&nojshint=true",
               "package=all&nocpdefaultcacheable=true&nojshint=true",
@@ -318,7 +345,7 @@ namespace :release do
       mkdir_p "tmp"
 
       Dir.chdir("tmp") do
-        sh "git clone git@github.com:emberjs/starter-kit.git"
+        sh "git clone https://github.com/emberjs/starter-kit.git"
       end
     end
 
@@ -390,7 +417,7 @@ namespace :release do
       mkdir_p "tmp"
 
       Dir.chdir("tmp") do
-        sh "git clone git@github.com:emberjs/examples.git"
+        sh "git clone https://github.com/emberjs/examples.git"
       end
     end
 
@@ -431,7 +458,7 @@ namespace :release do
       mkdir_p "tmp"
 
       Dir.chdir("tmp") do
-        sh "git clone git@github.com:emberjs/website.git"
+        sh "git clone https://github.com/emberjs/website.git"
       end
     end
 
@@ -449,13 +476,13 @@ namespace :release do
       about = File.read("tmp/website/source/about.html.erb")
       min_gz = Zlib::Deflate.deflate(File.read("dist/ember.min.js")).bytes.count / 1024
 
-      about.gsub! %r{https://github\.com/downloads/emberjs/ember\.js/ember-\d(\.\d+)*\.min\.js},
-        %{https://github.com/downloads/emberjs/ember.js/ember-#{EMBER_VERSION}.min.js}
+      about.gsub! %r{https://github\.com/downloads/emberjs/ember\.js/ember-\d(?:\.(?:(?:\d+)|pre))*?(\.min)?\.js},
+        %{https://github.com/downloads/emberjs/ember.js/ember-#{EMBER_VERSION}\\1.js}
 
-      about.gsub! %r{https://github\.com/downloads/emberjs/starter-kit/starter-kit\.\d(\.\d+)*\.zip},
+      about.gsub! %r{https://github\.com/downloads/emberjs/starter-kit/starter-kit\.\d(\.((\d+)|pre))*?*\.zip},
         %{https://github.com/downloads/emberjs/starter-kit/starter-kit.#{EMBER_VERSION}.zip}
 
-      about.gsub! /Ember \d(\.\d+)*/, "Ember #{EMBER_VERSION}"
+      about.gsub! /Ember \d(\.((\d+)|pre))*/, "Ember #{EMBER_VERSION}"
 
       about.gsub! /\d+k min\+gzip/, "#{min_gz}k min+gzip"
 
@@ -492,11 +519,21 @@ namespace :release do
     task :deploy => [:update]
   end
 
+  namespace :docs do
+    docs_upload_task("ember-docs")
+
+    desc "Prepare docs for release"
+    task :prepare => []
+
+    desc "Deploy docs"
+    task :deploy => [:upload]
+  end
+
   desc "Prepare Ember for new release"
-  task :prepare => [:clean, 'framework:prepare', 'starter_kit:prepare', 'examples:prepare', 'website:prepare']
+  task :prepare => [:clean, 'framework:prepare', 'starter_kit:prepare', 'examples:prepare', 'website:prepare', 'docs:prepare']
 
   desc "Deploy a new Ember release"
-  task :deploy => ['framework:deploy', 'starter_kit:deploy', 'examples:deploy', 'website:deploy']
+  task :deploy => ['framework:deploy', 'starter_kit:deploy', 'examples:deploy', 'website:deploy', 'docs:deploy']
 
 end
 

@@ -31,8 +31,8 @@ function append() {
 
 function selectedOptions() {
   var rv = [];
-  for(var i=0, len = select.getPath('content.length'); i < len; ++i) {
-    rv.push(select.getPath('childViews.' + i + '.childViews.0.selected'));
+  for(var i=0, len = select.get('content.length'); i < len; ++i) {
+    rv.push(select.get('childViews.' + i + '.childViews.0.selected'));
   }
   return rv;
 }
@@ -216,6 +216,21 @@ test("Ember.SelectedOption knows when it is selected when multiple=true", functi
   deepEqual(selectedOptions(), [true, false, true, false], "Initial selection should be correct");
 
   select.set('selection', [tom, david]);
+
+  deepEqual(selectedOptions(), [false, true, true, false], "After changing it, selection should be correct");
+});
+
+test("Ember.SelectedOption knows when it is selected when multiple=true and options are primatives", function() {
+  select.set('content', Ember.A([1, 2, 3, 4]));
+  select.set('multiple', true);
+
+  select.set('selection', [1, 3]);
+
+  append();
+
+  deepEqual(selectedOptions(), [true, false, true, false], "Initial selection should be correct");
+
+  select.set('selection', [2, 3]);
 
   deepEqual(selectedOptions(), [false, true, true, false], "After changing it, selection should be correct");
 });
@@ -423,4 +438,29 @@ test("upon content change, the DOM should reflect the selection (#481)", functio
 
   equal(select.get('selection'), 'd', "Selection was properly set after content change");
   equal(selectEl.selectedIndex, 1, "The DOM reflects the correct selection");
+});
+
+test("select element should initialize with the correct selectedIndex when using valueBinding", function() {
+  var view = Ember.View.create({
+    collection: Ember.A([{name: 'Wes', value: 'w'}, {name: 'Gordon', value: 'g'}]),
+    val: 'g',
+    template: Ember.Handlebars.compile(
+      '{{view Ember.Select viewName="select"' +
+      '    contentBinding="collection"' +
+      '    optionLabelPath="content.name"' +
+      '    optionValuePath="content.value"' +
+      '    prompt="Please wait..."' +
+      '    valueBinding="val"}}'
+    )
+  });
+
+  Ember.run(function() {
+    view.appendTo('#qunit-fixture');
+  });
+
+  var select = view.get('select'),
+      selectEl = select.$()[0];
+
+  equal(select.get('value'), 'g', "Precond: Initial selection is correct");
+  equal(selectEl.selectedIndex, 2, "Precond: The DOM reflects the correct selection");
 });

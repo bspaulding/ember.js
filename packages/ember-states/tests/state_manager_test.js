@@ -1,4 +1,4 @@
-var get = Ember.get, set = Ember.set, getPath = Ember.getPath, setPath = Ember.setPath;
+var get = Ember.get, set = Ember.set;
 
 var stateManager, loadingState, loadedState, stateEventStub = {
   entered: 0,
@@ -77,6 +77,16 @@ test("it reports its current state", function() {
   ok(get(stateManager, 'currentState') === loadedState, "currentState can change to a sibling state");
 });
 
+test("it reports its current state path", function() {
+  strictEqual(get(stateManager, 'currentPath'), null, "currentPath defaults to null if no state is specified");
+
+  stateManager.transitionTo('loadingState');
+  equal(get(stateManager, 'currentPath'), 'loadingState', "currentPath changes after transitionTo() is called");
+
+  stateManager.transitionTo('loadedState');
+  equal(get(stateManager, 'currentPath'), 'loadedState', "currentPath can change to a sibling state");
+});
+
 test("it sends enter and exit events during state transitions", function() {
   stateManager.transitionTo('loadingState');
 
@@ -125,7 +135,10 @@ test("it does not enter an infinite loop in transitionTo", function() {
   stateManager.transitionTo('');
   ok(stateManager.get('currentState') === emptyState, "transitionTo does nothing when given empty name");
 
-  stateManager.transitionTo('nonexistentState');
+  raises(function() {
+    stateManager.transitionTo('nonexistentState');
+  }, 'Could not find state for path: "nonexistentState"');
+
   ok(stateManager.get('currentState') === emptyState, "transitionTo does not infinite loop when given nonexistent State");
 });
 
@@ -740,12 +753,12 @@ test("nothing happens if transitioning to a parent state when the current state 
 
   equal(calledOnParent, 1, 'precond - setup parent');
   equal(calledOnChild, 1, 'precond - setup child');
-  equal(stateManager.getPath('currentState.path'), 'start.first', 'precond - is in expected state');
+  equal(stateManager.get('currentState.path'), 'start.first', 'precond - is in expected state');
 
   stateManager.transitionTo('start');
 
   equal(calledOnParent, 1, 'does not transition to parent again');
   equal(calledOnChild, 1, 'does not transition to child again');
-  equal(stateManager.getPath('currentState.path'), 'start.first', 'does not change state');
+  equal(stateManager.get('currentState.path'), 'start.first', 'does not change state');
 
 });

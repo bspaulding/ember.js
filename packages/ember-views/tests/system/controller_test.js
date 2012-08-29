@@ -62,7 +62,7 @@ test("connectOutlet takes an optional controller context", function() {
   ok(view instanceof TestApp.PostView, "the view is an instance of PostView");
   equal(view.get('controller'), postController, "the controller is looked up on the parent's controllers hash");
   equal(appController.get('view'), view, "the app controller's view is set");
-  equal(view.getPath('controller.content'), context, "the controller receives the context");
+  equal(view.get('controller.content'), context, "the controller receives the context");
 });
 
 test("connectOutlet with outletName, name syntax", function() {
@@ -79,7 +79,7 @@ test("connectOutlet with outletName, name syntax", function() {
   ok(view instanceof TestApp.PostView, "the view is an instance of PostView");
   equal(view.get('controller'), postController, "the controller is looked up on the parent's controllers hash");
   equal(appController.get('main'), view, "the app controller's view is set");
-  equal(view.getPath('controller.content'), context, "the controller receives the context");
+  equal(view.get('controller.content'), context, "the controller receives the context");
 });
 
 test("connectOutlet works if all three parameters are provided", function() {
@@ -95,7 +95,7 @@ test("connectOutlet works if all three parameters are provided", function() {
   ok(view instanceof TestApp.PostView, "the view is an instance of PostView");
   equal(view.get('controller'), postController, "the controller is looked up on the parent's controllers hash");
   equal(appController.get('mainView'), view, "the app controller's view is set");
-  equal(view.getPath('controller.content'), context, "the controller receives the context");
+  equal(view.get('controller.content'), context, "the controller receives the context");
 });
 
 test("connectOutlet works if a hash of options is passed", function() {
@@ -116,7 +116,7 @@ test("connectOutlet works if a hash of options is passed", function() {
   ok(view instanceof TestApp.PostView, "the view is an instance of PostView");
   equal(view.get('controller'), postController, "the controller is looked up on the parent's controllers hash");
   equal(appController.get('mainView'), view, "the app controller's view is set");
-  equal(view.getPath('controller.content'), context, "the controller receives the context");
+  equal(view.get('controller.content'), context, "the controller receives the context");
 });
 
 test("if the controller is explicitly set to null while connecting an outlet, the instantiated view will inherit its controller from its parent view", function() {
@@ -167,3 +167,42 @@ test("if the controller is not given while connecting an outlet, the instantiate
   equal(view.get('controller'), postController, "the controller was inherited from the parent");
 });
 
+
+test("connectControllers injects other controllers", function() {
+  var postController = {}, commentController = {};
+
+  var controller = Ember.Controller.create({
+    controllers: {
+      postController: postController,
+      commentController: commentController
+    }
+  });
+
+  controller.connectControllers('post', 'comment');
+
+  equal(controller.get('postController'), postController, "should connect postController");
+  equal(controller.get('commentController'), commentController, "should connect commentController");
+});
+
+test("can disconnect outlet from controller", function() {
+  var appController = TestApp.ApplicationController.create({
+    controllers: {},
+    namespace: TestApp
+  });
+
+  var view = appController.connectOutlet('post');
+
+  equal(appController.get('view'), view, "the app controller's view is set");
+
+  appController.disconnectOutlet();
+
+  equal(appController.get('view'), null, "the app controller's view is null");
+
+  view = appController.connectOutlet({outletName: 'master', name: 'post'});
+
+  equal(appController.get('master'), view, "the app controller's master view is set");
+
+  appController.disconnectOutlet('master');
+
+  equal(appController.get('master'), null, "the app controller's master view is null");
+});

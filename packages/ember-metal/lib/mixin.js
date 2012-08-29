@@ -572,6 +572,24 @@ Alias = function(methodName) {
 };
 Alias.prototype = new Ember.Descriptor();
 
+/**
+  Makes a property or method available via an additional name.
+
+      App.PaintSample = Ember.Object.extend({
+        color: 'red',
+        colour: Ember.alias('color'),
+        name: function(){
+          return "Zed";
+        },
+        moniker: Ember.alias("name")
+      });
+      var paintSample = App.PaintSample.create()
+      paintSample.get('colour'); //=> 'red'
+      paintSample.moniker(); //=> 'Zed'
+
+  @param {String} methodName name of the method or property to alias
+  @returns {Ember.Descriptor}
+*/
 Ember.alias = function(methodName) {
   return new Alias(methodName);
 };
@@ -584,6 +602,17 @@ Ember.observer = function(func) {
   var paths = a_slice.call(arguments, 1);
   func.__ember_observes__ = paths;
   return func;
+};
+
+// If observers ever become asynchronous, Ember.immediateObserver
+// must remain synchronous.
+Ember.immediateObserver = function() {
+  for (var i=0, l=arguments.length; i<l; i++) {
+    var arg = arguments[i];
+    Ember.assert("Immediate observers must observe internal properties only, not properties on other objects.", typeof arg !== "string" || arg.indexOf('.') === -1);
+  }
+
+  return Ember.observer.apply(this, arguments);
 };
 
 Ember.beforeObserver = function(func) {

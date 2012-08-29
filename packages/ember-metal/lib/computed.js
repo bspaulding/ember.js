@@ -15,7 +15,6 @@ Ember.warn("Computed properties will soon be cacheable by default. To enable thi
 
 
 var get = Ember.get,
-    getPath = Ember.getPath,
     metaFor = Ember.meta,
     guidFor = Ember.guidFor,
     a_slice = [].slice,
@@ -159,7 +158,9 @@ var ComputedPropertyPrototype = ComputedProperty.prototype;
 
   Properties are cacheable by default.
 
-  @name Ember.ComputedProperty.cacheable
+  @memberOf Ember.ComputedProperty.prototype
+  @name cacheable
+  @function
   @param {Boolean} aFlag optional set to false to disable caching
   @returns {Ember.ComputedProperty} receiver
 */
@@ -178,7 +179,9 @@ ComputedPropertyPrototype.cacheable = function(aFlag) {
         }.property().volatile()
       });
 
-  @name Ember.ComputedProperty.volatile
+  @memberOf Ember.ComputedProperty.prototype
+  @name volatile
+  @function
   @returns {Ember.ComputedProperty} receiver
 */
 ComputedPropertyPrototype.volatile = function() {
@@ -198,7 +201,9 @@ ComputedPropertyPrototype.volatile = function() {
         }).property('firstName', 'lastName')
       });
 
-  @name Ember.ComputedProperty.property
+  @memberOf Ember.ComputedProperty.prototype
+  @name property
+  @function
   @param {String} path... zero or more property paths
   @returns {Ember.ComputedProperty} receiver
 */
@@ -229,14 +234,20 @@ ComputedPropertyPrototype.property = function() {
   exposes a public API for retrieving these values from classes,
   via the `metaForProperty()` function.
 
-  @name Ember.ComputedProperty.meta
-  @param {Hash} metadata
+  @memberOf Ember.ComputedProperty.prototype
+  @name meta
+  @function
+  @param {Hash} meta
   @returns {Ember.ComputedProperty} property descriptor instance
 */
 
 ComputedPropertyPrototype.meta = function(meta) {
-  this._meta = meta;
-  return this;
+  if (arguments.length === 0) {
+    return this._meta || {};
+  } else {
+    this._meta = meta;
+    return this;
+  }
 };
 
 /** @private - impl descriptor API */
@@ -394,19 +405,19 @@ Ember.cacheFor = function cacheFor(obj, key) {
 
 Ember.computed.not = function(dependentKey) {
   return Ember.computed(dependentKey, function(key) {
-    return !getPath(this, dependentKey);
+    return !get(this, dependentKey);
   }).cacheable();
 };
 
 Ember.computed.empty = function(dependentKey) {
   return Ember.computed(dependentKey, function(key) {
-    var val = getPath(this, dependentKey);
+    var val = get(this, dependentKey);
     return val === undefined || val === null || val === '' || (Ember.isArray(val) && get(val, 'length') === 0);
   }).cacheable();
 };
 
 Ember.computed.bool = function(dependentKey) {
   return Ember.computed(dependentKey, function(key) {
-    return !!getPath(this, dependentKey);
+    return !!get(this, dependentKey);
   }).cacheable();
 };

@@ -1,6 +1,7 @@
 var get = Ember.get, set = Ember.set;
 
-Ember.ControllerMixin.reopen({
+// @class declaration and documentation in runtime/lib/controllers/controller.js
+Ember.ControllerMixin.reopen(/** @scope Ember.ControllerMixin.prototype */ {
 
   target: null,
   controllers: null,
@@ -117,7 +118,7 @@ Ember.ControllerMixin.reopen({
 
     outletName = outletName || 'view';
 
-    Ember.assert("You must supply a name or a view class to connectOutlets, but not both", (!!name && !viewClass && !controller) || (!name && !!viewClass));
+    Ember.assert("You must supply a name or a view class to connectOutlet, but not both", (!!name && !viewClass && !controller) || (!name && !!viewClass));
 
     if (name) {
       var namespace = get(this, 'namespace'),
@@ -131,12 +132,55 @@ Ember.ControllerMixin.reopen({
       Ember.assert("The name you supplied " + name + " did not resolve to a controller " + name + 'Controller', (!!controller && !!context) || !context);
     }
 
-    if (controller && context) { controller.set('content', context); }
-    view = viewClass.create();
+    if (controller && context) { set(controller, 'content', context); }
+
+    view = this.createOutletView(outletName, viewClass);
+
     if (controller) { set(view, 'controller', controller); }
     set(this, outletName, view);
 
     return view;
+  },
+
+  /**
+    Convenience method to connect controllers. This method makes other controllers
+    available on the controller the method was invoked on.
+
+    For example, to make the `personController` and the `postController` available
+    on the `overviewController`, you would call:
+
+        overviewController.connectControllers('person', 'post');
+
+    @param {String...} controllerNames the controllers to make available
+  */
+  connectControllers: function() {
+    var controllers = get(this, 'controllers'),
+        controllerNames = Array.prototype.slice.apply(arguments),
+        controllerName;
+
+    for (var i=0, l=controllerNames.length; i<l; i++) {
+      controllerName = controllerNames[i] + 'Controller';
+      set(this, controllerName, get(controllers, controllerName));
+    }
+  },
+
+  /**
+    `disconnectOutlet` removes previously attached view from given outlet.
+
+    @param  {String} outletName the outlet name. (optional)
+   */
+  disconnectOutlet: function(outletName) {
+    outletName = outletName || 'view';
+
+    set(this, outletName, null);
+  },
+
+  /**
+    `createOutletView` is a hook you may want to override if you need to do
+    something special with the view created for the outlet. For example
+    you may want to implement views sharing across outlets.
+  */
+  createOutletView: function(outletName, viewClass) {
+    return viewClass.create();
   }
 });
-

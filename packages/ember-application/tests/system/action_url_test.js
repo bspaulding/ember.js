@@ -90,10 +90,10 @@ test("it sets an URL with a context", function() {
     router.route("/");
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "precond - the current stat is root.index");
+  equal(router.get('currentState.path'), "root.index", "precond - the current stat is root.index");
 
   var view = Ember.View.create({
-    template: compile('<a {{action showDashboard context="controller.component" href=true}}>test</a>')
+    template: compile('<a {{action showDashboard controller.component href=true}}>test</a>')
   });
 
   var controller = {
@@ -153,9 +153,10 @@ test("it does not trigger action with special clicks", function() {
   checkClick('altKey', true, false);
   checkClick('metaKey', true, false);
   checkClick('shiftKey', true, false);
-  checkClick('button', 1, false);
+  checkClick('which', 2, false);
 
-  checkClick('button', 0, true);
+  checkClick('which', 1, true);
+  checkClick('which', undefined, true); // IE <9
 
   Ember.run(function() {
     dispatcher.destroy();

@@ -1,4 +1,4 @@
-var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
+var get = Ember.get, set = Ember.set;
 
 module("ember-views/views/container_view_test");
 
@@ -114,11 +114,11 @@ test("views that are removed from a ContainerView should have their child views 
     container.appendTo('#qunit-fixture');
   });
 
-  equal(getPath(view, 'childViews.length'), 1, "precond - renders one child view");
+  equal(get(view, 'childViews.length'), 1, "precond - renders one child view");
   Ember.run(function() {
     get(container, 'childViews').removeObject(view);
   });
-  equal(getPath(view, 'childViews.length'), 0, "child views are cleared when removed from container view");
+  equal(get(view, 'childViews.length'), 0, "child views are cleared when removed from container view");
 });
 
 test("if a ContainerView starts with an empy currentView, nothing is displayed", function() {
@@ -129,7 +129,7 @@ test("if a ContainerView starts with an empy currentView, nothing is displayed",
   });
 
   equal(container.$().text(), '', "has a empty contents");
-  equal(getPath(container, 'childViews.length'), 0, "should not have any child views");
+  equal(get(container, 'childViews.length'), 0, "should not have any child views");
 });
 
 test("if a ContainerView starts with a currentView, it is rendered as a child view", function() {
@@ -154,8 +154,8 @@ test("if a ContainerView starts with a currentView, it is rendered as a child vi
   });
 
   equal(container.$().text(), "This is the main view.", "should render its child");
-  equal(getPath(container, 'childViews.length'), 1, "should have one child view");
-  equal(getPath(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
+  equal(get(container, 'childViews.length'), 1, "should have one child view");
+  equal(get(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
   equal(mainView.get('parentView'), container, "parentView is setup");
   if (Ember.VIEW_PRESERVES_CONTEXT) {
     equal(context, container.get('context'), 'context preserved');
@@ -187,8 +187,8 @@ test("if a ContainerView is created with a currentView, it is rendered as a chil
   });
 
   equal(container.$().text(), "This is the main view.", "should render its child");
-  equal(getPath(container, 'childViews.length'), 1, "should have one child view");
-  equal(getPath(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
+  equal(get(container, 'childViews.length'), 1, "should have one child view");
+  equal(get(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
   equal(mainView.get('parentView'), container, "parentView is setup");
   if (Ember.VIEW_PRESERVES_CONTEXT) {
     equal(context, container.get('context'), 'context preserved');
@@ -210,15 +210,15 @@ test("if a ContainerView starts with no currentView and then one is set, the Con
   });
 
   equal(container.$().text(), '', "has a empty contents");
-  equal(getPath(container, 'childViews.length'), 0, "should not have any child views");
+  equal(get(container, 'childViews.length'), 0, "should not have any child views");
 
   Ember.run(function() {
     set(container, 'currentView', mainView);
   });
 
   equal(container.$().text(), "This is the main view.", "should render its child");
-  equal(getPath(container, 'childViews.length'), 1, "should have one child view");
-  equal(getPath(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
+  equal(get(container, 'childViews.length'), 1, "should have one child view");
+  equal(get(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
 });
 
 test("if a ContainerView starts with a currentView and then is set to null, the ContainerView is updated", function() {
@@ -235,18 +235,18 @@ test("if a ContainerView starts with a currentView and then is set to null, the 
   });
 
   equal(container.$().text(), "This is the main view.", "should render its child");
-  equal(getPath(container, 'childViews.length'), 1, "should have one child view");
-  equal(getPath(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
+  equal(get(container, 'childViews.length'), 1, "should have one child view");
+  equal(get(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
 
   Ember.run(function() {
     set(container, 'currentView', null);
   });
 
   equal(container.$().text(), '', "has a empty contents");
-  equal(getPath(container, 'childViews.length'), 0, "should not have any child views");
+  equal(get(container, 'childViews.length'), 0, "should not have any child views");
 });
 
-test("if a ContainerView starts with a currentView and then is set to null, the ContainerView is updated", function() {
+test("if a ContainerView starts with a currentView and then is set to null, the ContainerView is updated and the previous currentView is destroyed", function() {
   var container = Ember.ContainerView.create();
   var mainView = Ember.View.create({
     template: function() {
@@ -260,18 +260,20 @@ test("if a ContainerView starts with a currentView and then is set to null, the 
   });
 
   equal(container.$().text(), "This is the main view.", "should render its child");
-  equal(getPath(container, 'childViews.length'), 1, "should have one child view");
-  equal(getPath(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
+  equal(get(container, 'childViews.length'), 1, "should have one child view");
+  equal(get(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
 
   Ember.run(function() {
     set(container, 'currentView', null);
   });
 
+  equal(mainView.isDestroyed, true, 'should destroy the previous currentView.');
+
   equal(container.$().text(), '', "has a empty contents");
-  equal(getPath(container, 'childViews.length'), 0, "should not have any child views");
+  equal(get(container, 'childViews.length'), 0, "should not have any child views");
 });
 
-test("if a ContainerView starts with a currentView and then a different currentView is set, the old view is removed and the new one is added", function() {
+test("if a ContainerView starts with a currentView and then a different currentView is set, the old view is destroyed and the new one is added", function() {
   var container = Ember.ContainerView.create();
   var mainView = Ember.View.create({
     template: function() {
@@ -292,14 +294,182 @@ test("if a ContainerView starts with a currentView and then a different currentV
   });
 
   equal(container.$().text(), "This is the main view.", "should render its child");
-  equal(getPath(container, 'childViews.length'), 1, "should have one child view");
-  equal(getPath(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
+  equal(get(container, 'childViews.length'), 1, "should have one child view");
+  equal(get(container, 'childViews').objectAt(0), mainView, "should have the currentView as the only child view");
 
   Ember.run(function() {
     set(container, 'currentView', secondaryView);
   });
 
+  equal(mainView.isDestroyed, true, 'should destroy the previous currentView.');
+
   equal(container.$().text(), "This is the secondary view.", "should render its child");
-  equal(getPath(container, 'childViews.length'), 1, "should have one child view");
-  equal(getPath(container, 'childViews').objectAt(0), secondaryView, "should have the currentView as the only child view");
+  equal(get(container, 'childViews.length'), 1, "should have one child view");
+  equal(get(container, 'childViews').objectAt(0), secondaryView, "should have the currentView as the only child view");
+});
+
+test("should be able to modify childViews many times during an run loop", function () {
+
+  var container = Ember.ContainerView.create();
+
+  Ember.run(function() {
+    container.appendTo('#qunit-fixture');
+  });
+
+  var one = Ember.View.create({
+    template: function() {
+      return 'one';
+    }
+  });
+
+  var two = Ember.View.create({
+    template: function() {
+      return 'two';
+    }
+  });
+
+  var three = Ember.View.create({
+    template: function() {
+      return 'three';
+    }
+  });
+
+  var childViews = container.get('childViews');
+
+  Ember.run(function() {
+    // initial order
+    childViews.pushObjects([three, one, two]);
+    // sort
+    childViews.removeObject(three);
+    childViews.pushObject(three);
+  });
+
+  equal(container.$().text(), 'onetwothree');
+});
+
+test("should be able to modify childViews then remove the ContainerView in same run loop", function () {
+  var container = Ember.ContainerView.create();
+
+  Ember.run(function() {
+    container.appendTo('#qunit-fixture');
+  });
+
+  var childViews = container.get('childViews');
+  var count = 0;
+  var child = Ember.View.create({
+    template: function () { count++; return 'child'; }
+  });
+
+  Ember.run(function() {
+    childViews.pushObject(child);
+    container.remove();
+  });
+
+  equal(count, 0, 'did not render child');
+});
+
+test("should be able to modify childViews then destroy the ContainerView in same run loop", function () {
+    var container = Ember.ContainerView.create();
+
+  Ember.run(function() {
+    container.appendTo('#qunit-fixture');
+  });
+
+  var childViews = container.get('childViews');
+  var count = 0;
+  var child = Ember.View.create({
+    template: function () { count++; return 'child'; }
+  });
+
+  Ember.run(function() {
+    childViews.pushObject(child);
+    container.destroy();
+  });
+
+  equal(count, 0, 'did not render child');
+});
+
+
+test("should be able to modify childViews then rerender the ContainerView in same run loop", function () {
+    var container = Ember.ContainerView.create();
+
+  Ember.run(function() {
+    container.appendTo('#qunit-fixture');
+  });
+
+  var childViews = container.get('childViews');
+  var count = 0;
+  var child = Ember.View.create({
+    template: function () { count++; return 'child'; }
+  });
+
+  Ember.run(function() {
+    childViews.pushObject(child);
+    container.rerender();
+  });
+
+  equal(count, 1, 'rendered child only once');
+});
+
+test("should be able to modify childViews then rerender then modify again the ContainerView in same run loop", function () {
+  var container = Ember.ContainerView.create();
+
+  Ember.run(function() {
+    container.appendTo('#qunit-fixture');
+  });
+
+  var childViews = container.get('childViews');
+  var Child = Ember.View.extend({
+    count: 0,
+    render: function (buffer) {
+      this.count++;
+      buffer.push(this.label);
+    }
+  });
+  var one = Child.create({label: 'one'});
+  var two = Child.create({label: 'two'});
+
+  Ember.run(function() {
+    childViews.pushObject(one);
+    childViews.pushObject(two);
+  });
+
+  equal(one.count, 1, 'rendered child only once');
+  equal(two.count, 1, 'rendered child only once');
+  equal(container.$().text(), 'onetwo');
+});
+
+test("should be able to modify childViews then rerender again the ContainerView in same run loop and then modify again", function () {
+  var container = Ember.ContainerView.create();
+
+  Ember.run(function() {
+    container.appendTo('#qunit-fixture');
+  });
+
+  var childViews = container.get('childViews');
+  var Child = Ember.View.extend({
+    count: 0,
+    render: function (buffer) {
+      this.count++;
+      buffer.push(this.label);
+    }
+  });
+  var one = Child.create({label: 'one'});
+  var two = Child.create({label: 'two'});
+
+  Ember.run(function() {
+    childViews.pushObject(one);
+    container.rerender();
+  });
+
+  equal(one.count, 1, 'rendered child only once');
+  equal(container.$().text(), 'one');
+
+  Ember.run(function () {
+    childViews.pushObject(two);
+  });
+
+  equal(one.count, 1, 'rendered child only once');
+  equal(two.count, 1, 'rendered child only once');
+  equal(container.$().text(), 'onetwo');
 });

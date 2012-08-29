@@ -1,8 +1,17 @@
 require('ember-routing/route_matcher');
 require('ember-routing/routable');
-require('ember-application/system/location');
+require('ember-routing/location');
 
-var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
+var get = Ember.get, set = Ember.set;
+
+var merge = function(original, hash) {
+  for (var prop in hash) {
+    if (!hash.hasOwnProperty(prop)) { continue; }
+    if (original.hasOwnProperty(prop)) { continue; }
+
+    original[prop] = hash[prop];
+  }
+};
 
 /**
   @class
@@ -38,9 +47,9 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
 
   ## Adding Routes to a Router
   The `initialState` property of Ember.Router instances is named `root`. The state stored in this
-  property should be a subclass of Ember.Route. The `root` route should itself have states that are
-  also subclasses of Ember.Route and have `route` properties describing the URL pattern you would
-  like to detect.
+  property must be a subclass of Ember.Route. The `root` route acts as the container for the
+  set of routable states but is not routable itself. It should have states that are also subclasses
+  of Ember.Route which each have a `route` property describing the URL pattern you would like to detect.
 
       App = Ember.Application.create({
         Router: Ember.Router.extend({
@@ -82,6 +91,46 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
   'root.bRoute' ('/alphabeta') and transition the router first to the state named 'root' and
   then to the substate 'bRoute'.
 
+  ## Adding Nested Routes to a Router
+  Routes can contain nested subroutes each with their own `route` property describing the nested
+  portion of the URL they would like to detect and handle. Router, like all instances of StateManager,
+  cannot call `transitonTo` with an intermediary state. To avoid transitioning the Router into an
+  intermediary state when detecting URLs, a Route with nested routes must define both a base `route`
+  property for itself and a child Route with a `route` property of `'/'` which will be transitioned
+  to when the base route is detected in the URL:
+
+  Given the following application code:
+
+      App = Ember.Application.create({
+        Router: Ember.Router.extend({
+          root: Ember.Route.extend({
+            aRoute: Ember.Route.extend({
+              route: '/theBaseRouteForThisSet',
+
+              indexSubRoute: Ember.Route.extend({
+                route: '/'
+              }),
+
+              subRouteOne: Ember.Route.extend({
+                route: '/subroute1'
+              }),
+
+              subRouteTwo: Ember.Route.extend({
+                route: '/subRoute2'
+              })
+
+            })
+          })
+        })
+      });
+      App.initialize();
+
+  When the application is loaded at '/theBaseRouteForThisSet' the Router will transition to the route
+  at path 'root.aRoute' and then transition to state 'indexSubRoute'.
+
+  When the application is loaded at '/theBaseRouteForThisSet/subRoute1' the Router will transition to
+  the route at path 'root.aRoute' and then transition to state 'subRouteOne'.
+
   ## Route Transition Events
   Transitioning between Ember.Route instances (including the transition into the detected
   route when loading the application)  triggers the same transition events as state transitions for
@@ -96,10 +145,10 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
             aRoute: Ember.Route.extend({
               route: '/',
               enter: function(router) {
-                console.log("entering root.aRoute from", router.getPath('currentState.name'));
+                console.log("entering root.aRoute from", router.get('currentState.name'));
               },
               connectOutlets: function(router) {
-                console.log("entered root.aRoute, fully transitioned to", router.getPath('currentState.path'));
+                console.log("entered root.aRoute, fully transitioned to", router.get('currentState.path'));
               }
             })
           })
@@ -128,7 +177,7 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
   ### Deserializing A URL's Dynamic Segments
   When an application is first loaded or the URL is changed manually (e.g. through the browser's
   back button) the `deserialize` method of the URL's matching Ember.Route will be called with
-  the application's router as its first argument and a hash of the URLs dynamic segments and values
+  the application's router as its first argument and a hash of the URL's dynamic segments and values
   as its second argument.
 
   The following route structure when loaded with the URL "#/fixed/thefirstvalue/anotherFixed/thesecondvalue":
@@ -164,8 +213,8 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
   ### Serializing An Object For URLs with Dynamic Segments
   When transitioning into a Route whose `route` property contains dynamic segments the Route's
   `serialize` method is called with the Route's router as the first argument and the Route's
-  context as the second argument.  The return value of `serialize` will be use to populate the
-  dynamic segments and should be a object with keys that match the names of the dynamic sections.
+  context as the second argument.  The return value of `serialize` will be used to populate the
+  dynamic segments and should be an object with keys that match the names of the dynamic sections.
 
   Given the following route structure:
 
@@ -254,7 +303,7 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
 
   ## Injection of Controller Singletons
   During application initialization Ember will detect properties of the application ending in 'Controller',
-  create singleton instances of each class, and assign them as a properties on the router.  The property name
+  create singleton instances of each class, and assign them as properties on the router.  The property name
   will be the UpperCamel name converted to lowerCamel format. These controller classes should be subclasses
   of Ember.ObjectController, Ember.ArrayController, Ember.Controller, or a custom Ember.Object that includes the
   Ember.ControllerMixin mixin.
@@ -264,11 +313,11 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
         Router: Ember.Router.extend({ ... })
       });
 
-      App.getPath('router.fooController'); // instance of App.FooController
+      App.get('router.fooController'); // instance of App.FooController
 
   The controller singletons will have their `namespace` property set to the application and their `target`
   property set to the application's router singleton for easy integration with Ember's user event system.
-  See 'Changing View Hierarchy in Response To State Change' and 'Responding to User-initiated Events'
+  See 'Changing View Hierarchy in Response To State Change' and 'Responding to User-initiated Events.'
 
   ## Responding to User-initiated Events
   Controller instances injected into the router at application initialization have their `target` property
@@ -312,7 +361,7 @@ var get = Ember.get, getPath = Ember.getPath, set = Ember.set;
 
       <script type="text/x-handlebars" data-template-name="photos">
         {{#each photo in controller}}
-          <h1><a {{action showPhoto context="photo"}}>{{title}}</a></h1>
+          <h1><a {{action showPhoto photo}}>{{title}}</a></h1>
         {{/each}}
       </script>
 
@@ -396,12 +445,20 @@ Ember.Router = Ember.StateManager.extend(
   */
   transitionEvent: 'connectOutlets',
 
+  transitionTo: function() {
+    this.abortRoutingPromises();
+    this._super.apply(this, arguments);
+  },
+
   route: function(path) {
+    this.abortRoutingPromises();
+
     set(this, 'isRouting', true);
 
     var routableState;
 
     try {
+      path = path.replace(get(this, 'rootURL'), '');
       path = path.replace(/^(?=[^\/])/, "/");
 
       this.send('navigateAway');
@@ -442,7 +499,8 @@ Ember.Router = Ember.StateManager.extend(
     return location.formatURL(absoluteRoute);
   },
 
-  urlForEvent: function(eventName, context) {
+  urlForEvent: function(eventName) {
+    var contexts = Array.prototype.slice.call(arguments, 1);
     var currentState = get(this, 'currentState');
     var targetStateName = currentState.lookupEventTransition(eventName);
 
@@ -452,20 +510,61 @@ Ember.Router = Ember.StateManager.extend(
 
     Ember.assert("Your target state name " + targetStateName + " for event " + eventName + " did not resolve to a state", !!targetState);
 
-    var hash = this.serializeRecursively(targetState, context);
+    var hash = this.serializeRecursively(targetState, contexts, {});
 
     return this.urlFor(targetStateName, hash);
   },
 
   /** @private */
-  serializeRecursively: function(state, hash) {
-    hash = state.serialize(this, hash);
-    var parentState = state.get("parentState");
+  serializeRecursively: function(state, contexts, hash) {
+    var parentState,
+        context = get(state, 'hasContext') ? contexts.pop() : null;
+    merge(hash, state.serialize(this, context));
+    parentState = state.get("parentState");
     if (parentState && parentState instanceof Ember.Route) {
-      return this.serializeRecursively(parentState, hash);
+      return this.serializeRecursively(parentState, contexts, hash);
     } else {
       return hash;
     }
+  },
+
+  abortRoutingPromises: function() {
+    if (this._routingPromises) {
+      this._routingPromises.abort();
+      this._routingPromises = null;
+    }
+  },
+
+  /**
+    @private
+  */
+  handleStatePromises: function(states, complete) {
+    this.abortRoutingPromises();
+
+    this.set('isLocked', true);
+
+    var manager = this;
+
+    this._routingPromises = Ember._PromiseChain.create({
+      promises: states.slice(),
+
+      successCallback: function() {
+        manager.set('isLocked', false);
+        complete();
+      },
+
+      failureCallback: function() {
+        throw "Unable to load object";
+      },
+
+      promiseSuccessCallback: function(item, args) {
+        set(item, 'object', args[0]);
+      },
+
+      abortCallback: function() {
+        manager.set('isLocked', false);
+      }
+    }).start();
   },
 
   /** @private */

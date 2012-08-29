@@ -17,7 +17,7 @@ var location = {
   }
 };
 
-var getPath = Ember.getPath;
+var get = Ember.get;
 
 test("router.urlForEvent looks in the current state's eventTransitions hash", function() {
   var router = Ember.Router.create({
@@ -46,7 +46,7 @@ test("router.urlForEvent looks in the current state's eventTransitions hash", fu
     router.route('/');
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "precond - the router is in root.index");
+  equal(router.get('currentState.path'), "root.index", "precond - the router is in root.index");
 
   var url = router.urlForEvent('showDashboard');
   equal(url, "#!#/dashboard");
@@ -75,7 +75,7 @@ test("router.urlForEvent looks in the eventTransitions hashes of the current sta
     router.route('/');
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "precond - the router is in root.index");
+  equal(router.get('currentState.path'), "root.index", "precond - the router is in root.index");
 
   var url = router.urlForEvent('showDashboard');
   equal(url, "#!#/dashboard");
@@ -108,10 +108,47 @@ test("router.urlForEvent works with a context", function() {
     router.route('/');
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "precond - the router is in root.index");
+  equal(router.get('currentState.path'), "root.index", "precond - the router is in root.index");
 
   var url = router.urlForEvent('showDashboard', { id: 1 });
   equal(url, "#!#/dashboard/1");
+});
+
+test("router.urlForEvent works with multiple contexts", function() {
+  var router = Ember.Router.create({
+    location: location,
+    namespace: namespace,
+    root: Ember.Route.create({
+      index: Ember.Route.create({
+        route: '/',
+
+        showDashboard: function(router) {
+          router.transitionTo('dashboard');
+        },
+
+        eventTransitions: {
+          showComment: 'post.comment'
+        }
+      }),
+
+      post: Ember.Route.create({
+        route: '/post/:post_id',
+
+        comment: Ember.Route.create({
+          route: '/comment/:comment_id'
+        })
+      })
+    })
+  });
+
+  Ember.run(function() {
+    router.route('/');
+  });
+
+  equal(router.get('currentState.path'), "root.index", "precond - the router is in root.index");
+
+  var url = router.urlForEvent('showComment', { post_id: 1 }, { comment_id: 2 });
+  equal(url, "#!#/post/1/comment/2");
 });
 
 test("router.urlForEvent works with changing context in the current state", function() {
@@ -141,7 +178,7 @@ test("router.urlForEvent works with changing context in the current state", func
     router.route('/dashboard/1');
   });
 
-  equal(router.getPath('currentState.path'), "root.dashboard", "precond - the router is in root.dashboard");
+  equal(router.get('currentState.path'), "root.dashboard", "precond - the router is in root.dashboard");
 
   var url = router.urlForEvent('showDashboard', { id: 2 });
   equal(url, "#!#/dashboard/2");
@@ -179,7 +216,7 @@ test("router.urlForEvent works for nested routes with a context", function() {
     router.route('/');
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "precond - the router is in root.index");
+  equal(router.get('currentState.path'), "root.index", "precond - the router is in root.index");
 
   var url = router.urlForEvent('showDashboardActivity', { id: 1 });
   equal(url, "#!#/dashboard/1/activity");
@@ -207,7 +244,7 @@ test("router.urlForEvent works with Ember.State.transitionTo", function() {
     router.route('/');
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "precond - the router is in root.index");
+  equal(router.get('currentState.path'), "root.index", "precond - the router is in root.index");
 
   var url = router.urlForEvent('showDashboard', { id: 1 });
   equal(url, "#!#/dashboard/1");
@@ -249,34 +286,34 @@ test("rerouting doesn't exit all the way out", function() {
     router.route('/');
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "precond - the router is in root.index");
+  equal(router.get('currentState.path'), "root.index", "precond - the router is in root.index");
 
   Ember.run(function() {
     router.send('showDashboard');
   });
 
-  equal(router.getPath('currentState.path'), "root.dashboard.index", "precond - the router is in root.dashboard.index");
+  equal(router.get('currentState.path'), "root.dashboard.index", "precond - the router is in root.dashboard.index");
   equal(exited, 0, "the dashboard hasn't been exited yet");
 
   Ember.run(function() {
     router.send('showComponent', { id: 1 });
   });
 
-  equal(router.getPath('currentState.path'), "root.dashboard.component", "precond - the router is in root.index");
+  equal(router.get('currentState.path'), "root.dashboard.component", "precond - the router is in root.index");
   equal(exited, 0, "moving around shouldn't gratuitously exit states");
 
   Ember.run(function() {
     router.route('/dashboard');
   });
 
-  equal(router.getPath('currentState.path'), "root.dashboard.index", "the router is in root.dashboard.index");
+  equal(router.get('currentState.path'), "root.dashboard.index", "the router is in root.dashboard.index");
   equal(exited, 0, "moving around shouldn't gratuitously exit states");
 
   Ember.run(function() {
     router.route('/');
   });
 
-  equal(router.getPath('currentState.path'), "root.index", "the router is in root.dashboard.index");
+  equal(router.get('currentState.path'), "root.index", "the router is in root.dashboard.index");
   equal(exited, 1, "now, the exit was called");
 
   Ember.run(function() {
@@ -284,7 +321,7 @@ test("rerouting doesn't exit all the way out", function() {
   });
 
   exited = 0;
-  equal(router.getPath('currentState.path'), "root.dashboard.component", "the router is in root.dashboard.index");
+  equal(router.get('currentState.path'), "root.dashboard.component", "the router is in root.dashboard.index");
   equal(exited, 0, "exit wasn't called now");
 });
 
@@ -312,10 +349,55 @@ test("should be able to unroute out of a state with context", function() {
   });
 
   router.route('/components/1/edit');
-  equal(getPath(router, 'currentState.path'), 'root.components.show.edit', "should go to the correct state");
+  equal(get(router, 'currentState.path'), 'root.components.show.edit', "should go to the correct state");
 
   router.route('/components/1');
-  equal(getPath(router, 'currentState.path'), 'root.components.show.index', "should go to the correct state");
+  equal(get(router, 'currentState.path'), 'root.components.show.index', "should go to the correct state");
+});
+
+test("should be able to route with initialState", function() {
+  var router = Ember.Router.create({
+    location: location,
+    namespace: namespace,
+    root: Ember.Route.create({
+      initialState: 'stateOne',
+
+      stateOne: Ember.Route.create({
+        route: '/state_one'
+      }),
+
+      stateTwo: Ember.Route.create({
+        route: '/state_two'
+      })
+    })
+  });
+
+  equal(get(router, 'currentState.path'), 'root.stateOne', "should be in stateOne");
+
+  router.route('/state_two');
+
+  equal(get(router, 'currentState.path'), 'root.stateTwo', "should be in stateTwo");
+});
+
+test("should be able to route with rootURL", function() {
+  var router = Ember.Router.create({
+    location: location,
+    namespace: namespace,
+    rootURL: '/test',
+    root: Ember.Route.create({
+      stateOne: Ember.Route.create({
+        route: '/one'
+      }),
+
+      stateTwo: Ember.Route.create({
+        route: '/two'
+      })
+    })
+  });
+
+  router.route('/test/two');
+
+  equal(get(router, 'currentState.path'), 'root.stateTwo', "should be in stateTwo");
 });
 
 test("should update route for redirections", function() {
@@ -361,5 +443,5 @@ test("respects initialState if leafRoute with child states", function() {
   });
 
   equal(location.url, '/foo');
-  equal(router.getPath('currentState.name'), 'bar');
+  equal(router.get('currentState.name'), 'bar');
 });

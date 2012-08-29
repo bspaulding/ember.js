@@ -7,7 +7,7 @@
 
 require("ember-views/system/render_buffer");
 var get = Ember.get, set = Ember.set, addObserver = Ember.addObserver;
-var getPath = Ember.getPath, meta = Ember.meta, fmt = Ember.String.fmt;
+var meta = Ember.meta, fmt = Ember.String.fmt;
 var a_slice = [].slice;
 var a_forEach = Ember.EnumerableUtils.forEach;
 
@@ -156,11 +156,11 @@ var invokeForState = {
   and a different class name if it evaluates to false, you can pass a binding
   like this:
 
-    // Applies 'enabled' class when isEnabled is true and 'disabled' when isEnabled is false
-    Ember.View.create({
-      classNameBindings: ['isEnabled:enabled:disabled']
-      isEnabled: true
-    });
+      // Applies 'enabled' class when isEnabled is true and 'disabled' when isEnabled is false
+      Ember.View.create({
+        classNameBindings: ['isEnabled:enabled:disabled']
+        isEnabled: true
+      });
 
   Will result in view instances with an HTML representation of:
 
@@ -172,21 +172,20 @@ var invokeForState = {
 
   This syntax offers the convenience to add a class if a property is `false`:
 
-    // Applies no class when isEnabled is true and class 'disabled' when isEnabled is false
-    Ember.View.create({
-      classNameBindings: ['isEnabled::disabled']
-      isEnabled: true
-    });
+      // Applies no class when isEnabled is true and class 'disabled' when isEnabled is false
+      Ember.View.create({
+        classNameBindings: ['isEnabled::disabled']
+        isEnabled: true
+      });
 
   Will result in view instances with an HTML representation of:
 
-    <div id="ember1" class="ember-view"></div>
+      <div id="ember1" class="ember-view"></div>
 
   When the `isEnabled` property on the view is set to `false`, it will result
   in view instances with an HTML representation of:
 
-    <div id="ember1" class="ember-view disabled"></div>
-
+      <div id="ember1" class="ember-view disabled"></div>
 
   Updates to the the value of a class name binding will result in automatic update 
   of the  HTML `class` attribute in the view's rendered HTML representation.
@@ -269,7 +268,7 @@ var invokeForState = {
           firstName: 'Barry'
         })
         excitedGreeting: function(){
-          return this.getPath("content.firstName") + "!!!"
+          return this.get("content.firstName") + "!!!"
         }
       })
 
@@ -597,7 +596,7 @@ Ember.View = Ember.Object.extend(Ember.Evented,
     } else {
       return get(this, '_context');
     }
-  }).cacheable(),
+  }).volatile(),
 
   /**
     @private
@@ -805,7 +804,7 @@ Ember.View = Ember.Object.extend(Ember.Evented,
       view.propertyDidChange('contentView');
     });
 
-    if (getPath(this, 'parentView.controller') && !get(this, 'controller')) {
+    if (get(this, 'parentView.controller') && !get(this, 'controller')) {
       this.notifyPropertyChange('controller');
     }
   }, '_parentView'),
@@ -846,7 +845,7 @@ Ember.View = Ember.Object.extend(Ember.Evented,
     var template = get(this, 'layout') || get(this, 'template');
 
     if (template) {
-      var context = get(this, '_context');
+      var context = get(this, 'context');
       var keywords = this.cloneKeywords();
 
       var data = {
@@ -1031,6 +1030,8 @@ Ember.View = Ember.Object.extend(Ember.Evented,
       // JavaScript property changes.
       var observer = function() {
         elem = this.$();
+        if (!elem) { return; }
+
         attributeValue = get(this, property);
 
         Ember.View.applyAttributeBindings(elem, attributeName, attributeValue);
@@ -1058,10 +1059,9 @@ Ember.View = Ember.Object.extend(Ember.Evented,
     var parsedPath = Ember.View._parsePropertyPath(property);
     var path = parsedPath.path;
 
-    // TODO: Remove this `false` when the `getPath` globals support is removed
-    var val = getPath(this, path, false);
+    var val = get(this, path);
     if (val === undefined && Ember.isGlobalPath(path)) {
-      val = getPath(window, path);
+      val = get(window, path);
     }
 
     return Ember.View._classStringForValue(path, val, parsedPath.className, parsedPath.falsyClassName);
@@ -1519,6 +1519,10 @@ Ember.View = Ember.Object.extend(Ember.Evented,
     return buffer;
   },
 
+  renderToBufferIfNeeded: function () {
+    return this.invokeForState('renderToBufferIfNeeded', this);
+  },
+
   beforeRender: function(buffer) {
     this.applyAttributesToBuffer(buffer);
   },
@@ -1685,7 +1689,7 @@ Ember.View = Ember.Object.extend(Ember.Evented,
 
     var viewController = get(this, 'viewController');
     if (viewController) {
-      viewController = Ember.getPath(viewController);
+      viewController = get(viewController);
       if (viewController) {
         set(viewController, 'view', this);
       }
@@ -1843,9 +1847,12 @@ Ember.View = Ember.Object.extend(Ember.Evented,
     element of the actual DOM element.
   */
   _isVisibleDidChange: Ember.observer(function() {
+    var $el = this.$();
+    if (!$el) { return; }
+
     var isVisible = get(this, 'isVisible');
 
-    this.$().toggle(isVisible);
+    $el.toggle(isVisible);
 
     if (this._isAncestorHidden()) { return; }
 
@@ -1971,18 +1978,16 @@ Ember.View = Ember.Object.extend(Ember.Evented,
 
 /** @private */
 var DOMManager = {
-  prepend: function(view, childView) {
-    childView._insertElementLater(function() {
-      var element = view.$();
-      element.prepend(childView.$());
-    });
+  prepend: function(view, html) {
+    view.$().prepend(html);
   },
 
-  after: function(view, nextView) {
-    nextView._insertElementLater(function() {
-      var element = view.$();
-      element.after(nextView.$());
-    });
+  after: function(view, html) {
+    view.$().after(html);
+  },
+
+  html: function(view, html) {
+    view.$().html(html);
   },
 
   replace: function(view) {
@@ -1996,12 +2001,7 @@ var DOMManager = {
   },
 
   remove: function(view) {
-    var elem = get(view, 'element');
-
-    set(view, 'element', null);
-    view._lastInsert = null;
-
-    Ember.$(elem).remove();
+    view.$().remove();
   },
 
   empty: function(view) {
@@ -2033,7 +2033,7 @@ Ember.View.reopenClass({
 
   */
   _parsePropertyPath: function(path) {
-    var split = path.split(/:/),
+    var split = path.split(':'),
         propertyPath = split[0],
         classNames = "",
         className,
