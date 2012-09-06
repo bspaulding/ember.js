@@ -365,6 +365,8 @@ if (!Ember.keys) {
 // ERROR
 //
 
+var errorProps = ['description', 'fileName', 'lineNumber', 'message', 'name', 'number', 'stack'];
+
 /**
   @class
 
@@ -373,10 +375,10 @@ if (!Ember.keys) {
 Ember.Error = function() {
   var tmp = Error.prototype.constructor.apply(this, arguments);
 
-  for (var p in tmp) {
-    if (tmp.hasOwnProperty(p)) { this[p] = tmp[p]; }
+  // Unfortunately errors are not enumerable in Chrome (at least), so `for prop in tmp` doesn't work.
+  for (var idx = 0; idx < errorProps.length; idx++) {
+    this[errorProps[idx]] = tmp[errorProps[idx]];
   }
-  this.message = tmp.message;
 };
 
 Ember.Error.prototype = Ember.create(Error.prototype);

@@ -32,19 +32,10 @@ function invoke(target, method, args, ignore) {
     args = args.length > ignore ? slice.call(args, ignore) : null;
   }
 
-  // Unfortunately in some browsers we lose the backtrace if we rethrow the existing error,
-  // so in the event that we don't have an `onerror` handler we don't wrap in a try/catch
-  if ('function' === typeof Ember.onerror) {
-    try {
-      // IE8's Function.prototype.apply doesn't accept undefined/null arguments.
-      return method.apply(target || this, args || []);
-    } catch (error) {
-      Ember.onerror(error);
-    }
-  } else {
+  return Ember.handleErrors(function() {
     // IE8's Function.prototype.apply doesn't accept undefined/null arguments.
     return method.apply(target || this, args || []);
-  }
+  }, this);
 }
 
 
@@ -470,7 +461,7 @@ Ember.run.later = function(target, method) {
 /** @private */
 function invokeOnceTimer(guid, onceTimers) {
   if (onceTimers[this.tguid]) { delete onceTimers[this.tguid][this.mguid]; }
-  if (timers[guid]) { invoke(this.target, this.method, this.args, 2); }
+  if (timers[guid]) { invoke(this.target, this.method, this.args); }
   delete timers[guid];
 }
 
@@ -532,11 +523,11 @@ function scheduleOnce(queue, target, method, args) {
   @returns {Object} timer
 */
 Ember.run.once = function(target, method) {
-  return scheduleOnce('actions', target, method, slice.call(arguments));
+  return scheduleOnce('actions', target, method, slice.call(arguments, 2));
 };
 
-Ember.run.scheduleOnce = function(queue, target, method) {
-  return scheduleOnce(queue, target, method, slice.call(arguments));
+Ember.run.scheduleOnce = function(queue, target, method, args) {
+  return scheduleOnce(queue, target, method, slice.call(arguments, 3));
 };
 
 var scheduledNext;
