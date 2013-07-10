@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 /*global jQuery*/
 
 module("Ember.meta");
@@ -16,7 +10,14 @@ test("should return the same hash for an object", function() {
   equal(Ember.meta(obj).foo, "bar", "returns same hash with multiple calls to Ember.meta()");
 });
 
-module("Ember.metaPath");
+module("Ember.metaPath", {
+  setup: function() {
+    Ember.TESTING_DEPRECATION = true;
+  },
+  teardown: function() {
+    Ember.TESTING_DEPRECATION = false;
+  }
+});
 
 test("should not create nested objects if writable is false", function() {
   var obj = {};
@@ -47,7 +48,7 @@ module("Ember.meta enumerable");
 // Tests fix for https://github.com/emberjs/ember.js/issues/344
 // This is primarily for older browsers such as IE8
 if (Ember.platform.defineProperty.isSimulated) {
-  if (window.jQuery) {
+  if (Ember.imports.jQuery) {
     test("meta is not jQuery.isPlainObject", function () {
       var proto, obj;
       proto = {foo: 'bar'};
@@ -69,7 +70,7 @@ if (Ember.platform.defineProperty.isSimulated) {
       props.push(prop);
     }
     deepEqual(props.sort(), ['bar', 'foo']);
-    if (window.JSON && 'stringify' in JSON) {
+    if (typeof JSON !== 'undefined' && 'stringify' in JSON) {
       try {
         JSON.stringify(obj);
       } catch (e) {

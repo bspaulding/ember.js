@@ -1,10 +1,3 @@
-// ==========================================================================
-// Project:   Ember - JavaScript Application Framework
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 var set = Ember.set, get = Ember.get;
 var forEach = Ember.EnumerableUtils.forEach;
 var view;
@@ -141,7 +134,7 @@ test("should insert a new item in DOM when an item is added to the content array
     content.insertAt(1, 'quux');
   });
 
-  equal(view.$(':nth-child(2)').text(), 'quux');
+  equal(Ember.$.trim(view.$(':nth-child(2)').text()), 'quux');
 });
 
 test("should remove an item from DOM when an item is removed from the content array", function() {
@@ -200,7 +193,7 @@ test("it updates the view if an item is replaced", function() {
   });
 
   forEach(content, function(item, idx) {
-    equal(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text(), item, "postcond - correct array update");
+    equal(Ember.$.trim(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
   });
 });
 
@@ -231,7 +224,7 @@ test("can add and replace in the same runloop", function() {
   });
 
   forEach(content, function(item, idx) {
-    equal(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text(), item, "postcond - correct array update");
+    equal(Ember.$.trim(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
   });
 
 });
@@ -263,7 +256,7 @@ test("can add and replace the object before the add in the same runloop", functi
   });
 
   forEach(content, function(item, idx) {
-    equal(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text(), item, "postcond - correct array update");
+    equal(Ember.$.trim(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
   });
 });
 
@@ -296,7 +289,7 @@ test("can add and replace complicatedly", function() {
   });
 
   forEach(content, function(item, idx) {
-    equal(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text(), item, "postcond - correct array update: "+item.name+"!="+view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text());
+    equal(Ember.$.trim(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update: "+item.name+"!="+view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text());
   });
 });
 
@@ -330,7 +323,7 @@ test("can add and replace complicatedly harder", function() {
   });
 
   forEach(content, function(item, idx) {
-    equal(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text(), item, "postcond - correct array update");
+    equal(Ember.$.trim(view.$(Ember.String.fmt(':nth-child(%@)', [String(idx+1)])).text()), item, "postcond - correct array update");
   });
 });
 
@@ -355,6 +348,7 @@ test("should fire life cycle events when elements are added and removed", functi
     didInsertElement = 0,
     willDestroyElement = 0,
     willDestroy = 0,
+    destroy = 0,
     content = Ember.A([1, 2, 3]);
   Ember.run(function () {
     view = Ember.CollectionView.create({
@@ -372,6 +366,10 @@ test("should fire life cycle events when elements are added and removed", functi
         willDestroy: function () {
           willDestroy++;
           this._super();
+        },
+        destroy: function() {
+          destroy++;
+          this._super();
         }
       })
     });
@@ -381,6 +379,7 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(didInsertElement, 3);
   equal(willDestroyElement, 0);
   equal(willDestroy, 0);
+  equal(destroy, 0);
   equal(view.$().text(), '123');
 
   Ember.run(function () {
@@ -392,7 +391,9 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(didInsertElement, 5);
   equal(willDestroyElement, 0);
   equal(willDestroy, 0);
-  equal(view.$().text(), '01234');
+  equal(destroy, 0);
+  // Remove whitspace added by IE 8
+  equal(view.$().text().replace(/\s+/g,''), '01234');
 
   Ember.run(function () {
     content.popObject();
@@ -402,7 +403,9 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(didInsertElement, 5);
   equal(willDestroyElement, 2);
   equal(willDestroy, 2);
-  equal(view.$().text(), '123');
+  equal(destroy, 2);
+  // Remove whitspace added by IE 8
+  equal(view.$().text().replace(/\s+/g,''), '123');
 
   Ember.run(function () {
     view.set('content', Ember.A([7,8,9]));
@@ -411,7 +414,9 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(didInsertElement, 8);
   equal(willDestroyElement, 5);
   equal(willDestroy, 5);
-  equal(view.$().text(), '789');
+  equal(destroy, 5);
+  // Remove whitspace added by IE 8
+  equal(view.$().text().replace(/\s+/g,''), '789');
 
   Ember.run(function () {
     view.destroy();
@@ -420,6 +425,7 @@ test("should fire life cycle events when elements are added and removed", functi
   equal(didInsertElement, 8);
   equal(willDestroyElement, 8);
   equal(willDestroy, 8);
+  equal(destroy, 8);
 });
 
 test("should allow changing content property to be null", function() {
@@ -441,7 +447,7 @@ test("should allow changing content property to be null", function() {
     set(view, 'content', null);
   });
 
-  equal(view.$().children().text(), "(empty)", "should display empty view");
+  equal(Ember.$.trim(view.$().children().text()), "(empty)", "should display empty view");
 });
 
 test("should allow items to access to the CollectionView's current index in the content array", function() {
@@ -481,7 +487,7 @@ test("should not render the emptyView if content is emptied and refilled in the 
     tagName: 'div',
     content: Ember.A(['NEWS GUVNAH']),
 
-    emptyView: Ember.View.create({
+    emptyView: Ember.View.extend({
       tagName: 'kbd',
       render: function(buf) {
         buf.push("OY SORRY GUVNAH NO NEWS TODAY EH");
@@ -492,7 +498,7 @@ test("should not render the emptyView if content is emptied and refilled in the 
   Ember.run(function() {
     view.append();
   });
-  
+
   equal(view.$().find('kbd:contains("OY SORRY GUVNAH")').length, 0);
 
   Ember.run(function() {
@@ -531,5 +537,45 @@ test("a array_proxy that backs an sorted array_controller that backs a collectio
 
   Ember.run(function() {
     container.destroy();
+  });
+});
+
+test("when a collection view is emptied, deeply nested views elements are not removed from the DOM and then destroyed again", function() {
+  var assertProperDestruction = Ember.Mixin.create({
+    destroyElement: function() {
+      if ( this.state === 'inDOM' ) {
+        ok(this.get('element'), this + ' still exists in DOM');
+      }
+      return this._super();
+    }
+  });
+
+  var ChildView = Ember.View.extend(assertProperDestruction, {
+    render: function(buf) {
+      // emulate nested template
+      this.appendChild(Ember.View.createWithMixins(assertProperDestruction, {
+        template: function() { return "<div class='inner_element'></div>"; }
+      }));
+    }
+  });
+
+  var view = Ember.CollectionView.create({
+    content: Ember.A([1]),
+    itemViewClass: ChildView
+  });
+
+
+  Ember.run(function() {
+    view.append();
+  });
+  equal(Ember.$('.inner_element').length, 1, "precond - generates inner element");
+
+  Ember.run(function() {
+    view.get('content').clear();
+  });
+  equal(Ember.$('.inner_element').length, 0, "elements removed");
+
+  Ember.run(function() {
+    view.remove();
   });
 });

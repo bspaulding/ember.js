@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:   Ember - JavaScript Application Framework
-// Copyright: ©2006-2011 Apple Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 var set = Ember.set, get = Ember.get;
 
 // .......................................................
@@ -13,129 +7,98 @@ module("Ember.RenderBuffer");
 
 test("RenderBuffers combine strings", function() {
   var buffer = new Ember.RenderBuffer('div');
+  buffer.pushOpeningTag();
 
   buffer.push('a');
   buffer.push('b');
 
-  equal("<div>ab</div>", buffer.string(), "Multiple pushes should concatenate");
+  // IE8 returns `element name as upper case with extra whitespace.
+  equal("<div>ab</div>", buffer.string().toLowerCase().replace(/\s+/g, ''), "Multiple pushes should concatenate");
 });
 
-test("It is possible to remove a RenderBuffer", function() {
-  var buffer = new Ember.RenderBuffer('div');
+test("value of 0 is included in output", function() {
+  var buffer, $el;
 
-  buffer.push('a');
+  buffer = new Ember.RenderBuffer('input');
+  buffer.prop('value', 0);
+  buffer.pushOpeningTag();
+  $el = buffer.element();
 
-  var second = buffer.begin('span').push('zomg');
-  second.end();
+  strictEqual($el.value, '0', "generated element has value of '0'");
 
-  var third = buffer.begin('span').push('wotwot');
-  third.end();
+  buffer = new Ember.RenderBuffer('input');
+  buffer.prop('value', 0);
+  buffer.push('<div>');
+  buffer.pushOpeningTag();
+  buffer.push('</div>');
+  $el = Ember.$(buffer.innerString());
 
-  buffer.push('b');
-
-  second.remove();
-
-  equal(buffer.string(), '<div>a<span>wotwot</span>b</div>', 'Removed elements are gone');
-});
-
-test("It is possible to replace a RenderBuffer", function() {
-  var buffer = new Ember.RenderBuffer('div');
-
-  buffer.push('a');
-
-  var second = buffer.begin('span').push('zomg');
-  second.end();
-
-  buffer.push('b');
-
-  var third = buffer.begin('span').push('wotwot');
-  third.end();
-
-  buffer.push('c');
-
-  var replacement = second.replaceWith('aside').push('replaced!');
-  replacement.end();
-
-  equal(buffer.string(), '<div>a<aside>replaced!</aside>b<span>wotwot</span>c</div>', 'Removed elements are absent in the final output');
-});
-
-test("It is possible to insert a RenderBuffer after another one", function() {
-  var buffer = new Ember.RenderBuffer('div');
-
-  buffer.push('a');
-
-  var second = buffer.begin('span').push('zomg');
-  second.end();
-
-  buffer.push('b');
-
-  var third = buffer.begin('span').push('wotwot');
-  third.end();
-
-  buffer.push('c');
-
-  var inserted = third.insertAfter('aside').push('inserted!');
-  inserted.end();
-
-  equal(buffer.string(), '<div>a<span>zomg</span>b<span>wotwot</span><aside>inserted!</aside>c</div>', 'Inserted objects are inserted in the final output');
-});
-
-test("It is possible to prepend a child RenderBuffer", function() {
-  var buffer = new Ember.RenderBuffer('div');
-
-  buffer.push('a');
-
-  var second = buffer.begin('span').push('zomg');
-  second.end();
-
-  buffer.push('b');
-
-  var third = buffer.begin('span').push('wotwot');
-  third.end();
-
-  buffer.push('c');
-
-  var prepended = buffer.prepend('aside').push('prepended!');
-  prepended.end();
-
-  equal(buffer.string(), '<div><aside>prepended!</aside>a<span>zomg</span>b<span>wotwot</span>c</div>', 'Prepended buffers are prepended to the final output');
+  strictEqual($el.find('input').val(), '0', "raw tag has value of '0'");
 });
 
 test("prevents XSS injection via `id`", function() {
   var buffer = new Ember.RenderBuffer('div');
 
+  buffer.push('<span></span>'); // We need the buffer to not be empty so we use the string path
   buffer.id('hacked" megahax="yes');
+  buffer.pushOpeningTag();
 
-  equal(buffer.string(), '<div id="hacked&quot; megahax=&quot;yes"></div>');
+  equal('<span></span><div id="hacked&quot; megahax=&quot;yes">', buffer.string());
 });
 
 test("prevents XSS injection via `attr`", function() {
   var buffer = new Ember.RenderBuffer('div');
 
+  buffer.push('<span></span>'); // We need the buffer to not be empty so we use the string path
   buffer.attr('id', 'trololol" onmouseover="pwn()');
-  buffer.attr('class', "hax><img src='trollface.png'");
+  buffer.attr('class', "hax><img src=\"trollface.png\"");
+  buffer.pushOpeningTag();
 
-  equal(buffer.string(), '<div id="trololol&quot; onmouseover=&quot;pwn()" class="hax&gt;&lt;img src=&#x27;trollface.png&#x27;"></div>');
+  equal('<span></span><div id="trololol&quot; onmouseover=&quot;pwn()" class="hax&gt;&lt;img src=&quot;trollface.png&quot;">', buffer.string());
 });
 
 test("prevents XSS injection via `addClass`", function() {
   var buffer = new Ember.RenderBuffer('div');
 
+  buffer.push('<span></span>'); // We need the buffer to not be empty so we use the string path
   buffer.addClass('megahax" xss="true');
+  buffer.pushOpeningTag();
 
-  equal(buffer.string(), '<div class="megahax&quot; xss=&quot;true"></div>');
+  // Regular check then check for IE
+  equal('<span></span><div class="megahax&quot; xss=&quot;true">', buffer.string());
 });
 
 test("prevents XSS injection via `style`", function() {
   var buffer = new Ember.RenderBuffer('div');
 
+  buffer.push('<span></span>'); // We need the buffer to not be empty so we use the string path
   buffer.style('color', 'blue;" xss="true" style="color:red');
+  buffer.pushOpeningTag();
 
-  equal(buffer.string(), '<div style="color:blue;&quot; xss=&quot;true&quot; style=&quot;color:red;"></div>');
+  equal('<span></span><div style="color:blue;&quot; xss=&quot;true&quot; style=&quot;color:red;">', buffer.string());
 });
 
+test("handles null props - Issue #2019", function() {
+  var buffer = new Ember.RenderBuffer('div');
 
-module("RenderBuffers without tagName");
+  buffer.push('<span></span>'); // We need the buffer to not be empty so we use the string path
+  buffer.prop('value', null);
+  buffer.pushOpeningTag();
+
+  equal('<span></span><div>', buffer.string());
+});
+
+test("handles browsers like Firefox < 11 that don't support outerHTML Issue #1952", function(){
+  var buffer = new Ember.RenderBuffer('div');
+  buffer.pushOpeningTag();
+  // Make sure element.outerHTML is falsy to trigger the fallback.
+  var elementStub = '<div></div>';
+  buffer.element = function(){ return elementStub; };
+  // IE8 returns `element name as upper case with extra whitespace.
+  equal(elementStub, buffer.string().toLowerCase().replace(/\s/g, ''));
+});
+
+module("Ember.RenderBuffer - without tagName");
 
 test("It is possible to create a RenderBuffer without a tagName", function() {
   var buffer = new Ember.RenderBuffer();
@@ -146,34 +109,14 @@ test("It is possible to create a RenderBuffer without a tagName", function() {
   equal(buffer.string(), "abc", "Buffers without tagNames do not wrap the content in a tag");
 });
 
-test("it is possible to create a child render buffer without a tagName", function() {
+module("Ember.RenderBuffer#element");
+
+test("properly handles old IE's zero-scope bug", function() {
   var buffer = new Ember.RenderBuffer('div');
+  buffer.pushOpeningTag();
+  buffer.push('<script></script>foo');
 
-  buffer.push('a');
-
-  var second = buffer.begin().push('middle').end();
-
-  buffer.push('b');
-  buffer.push('c');
-
-  equal(buffer.string(), "<div>amiddlebc</div>", "Buffers without tagNames do not wrap the content in a tag");
-});
-
-test("it is possible to replace a child render buffer initially created without a tagName", function() {
-  var buffer = new Ember.RenderBuffer('div');
-
-  buffer.push('a');
-
-  var second = buffer.begin().push('middle');
-  second.end();
-
-  buffer.push('b');
-  buffer.push('c');
-
-  equal(buffer.string(), "<div>amiddlebc</div>", "precond - Buffers without tagNames do not wrap the content in a tag");
-
-  var replacement = second.replaceWith().push('new-mid');
-  replacement.end();
-
-  equal(buffer.string(), "<div>anew-midbc</div>", "Replacements can operate on tagName-less buffers");
+  var element = buffer.element();
+  ok(Ember.$(element).html().match(/script/i), "should have script tag");
+  ok(!Ember.$(element).html().match(/&shy;/), "should not have &shy;");
 });

@@ -1,11 +1,20 @@
 /*global Test:true*/
 
-module("Ember.TargetActionSupport");
+var originalLookup;
+
+module("Ember.TargetActionSupport", {
+  setup: function() {
+    originalLookup = Ember.lookup;
+  },
+  teardown: function() {
+    Ember.lookup = originalLookup;
+  }
+});
 
 test("it should return false if no target or action are specified", function() {
   expect(1);
 
-  var obj = Ember.Object.create(Ember.TargetActionSupport);
+  var obj = Ember.Object.createWithMixins(Ember.TargetActionSupport);
 
   ok(false === obj.triggerAction(), "no target or action was specified");
 });
@@ -13,7 +22,7 @@ test("it should return false if no target or action are specified", function() {
 test("it should support actions specified as strings", function() {
   expect(2);
 
-  var obj = Ember.Object.create(Ember.TargetActionSupport, {
+  var obj = Ember.Object.createWithMixins(Ember.TargetActionSupport, {
     target: Ember.Object.create({
       anEvent: function() {
         ok(true, "anEvent method was called");
@@ -27,12 +36,13 @@ test("it should support actions specified as strings", function() {
 });
 
 test("it should invoke the send() method on objects that implement it", function() {
-  expect(2);
+  expect(3);
 
-  var obj = Ember.Object.create(Ember.TargetActionSupport, {
+  var obj = Ember.Object.createWithMixins(Ember.TargetActionSupport, {
     target: Ember.Object.create({
-      send: function(evt) {
+      send: function(evt, context) {
         equal(evt, 'anEvent', "send() method was invoked with correct event name");
+        equal(context, obj, "send() method was invoked with correct context");
       }
     }),
 
@@ -45,7 +55,8 @@ test("it should invoke the send() method on objects that implement it", function
 test("it should find targets specified using a property path", function() {
   expect(2);
 
-  window.Test = {};
+  var Test = {};
+  Ember.lookup = { Test: Test };
 
   Test.targetObj = Ember.Object.create({
     anEvent: function() {
@@ -53,12 +64,83 @@ test("it should find targets specified using a property path", function() {
     }
   });
 
-  var myObj = Ember.Object.create(Ember.TargetActionSupport, {
+  var myObj = Ember.Object.createWithMixins(Ember.TargetActionSupport, {
     target: 'Test.targetObj',
     action: 'anEvent'
   });
 
   ok(true === myObj.triggerAction(), "a valid target and action were specified");
+});
 
-  window.Test = undefined;
+test("it should use an actionContext object specified as a property on the object", function(){
+  expect(2);
+  var obj = Ember.Object.createWithMixins(Ember.TargetActionSupport,{
+        action: 'anEvent',
+        actionContext: {},
+        target: Ember.Object.create({
+          anEvent: function(ctx) {
+            ok(obj.actionContext === ctx, "anEvent method was called with the expected context");
+          }
+        })
+      });
+  ok(true === obj.triggerAction(), "a valid target and action were specified");
+});
+
+test("it should find an actionContext specified as a property path", function(){
+  expect(2);
+
+  var Test = {};
+  Ember.lookup = { Test: Test };
+  Test.aContext = {};
+
+  var obj = Ember.Object.createWithMixins(Ember.TargetActionSupport,{
+        action: 'anEvent',
+        actionContext: 'Test.aContext',
+        target: Ember.Object.create({
+          anEvent: function(ctx) {
+            ok(Test.aContext === ctx, "anEvent method was called with the expected context");
+          }
+        })
+      });
+  ok(true === obj.triggerAction(), "a valid target and action were specified");
+});
+
+test("it should use the target specified in the argument", function(){
+  expect(2);
+  var targetObj = Ember.Object.create({
+        anEvent: function() {
+          ok(true, "anEvent method was called");
+        }
+      }),
+      obj = Ember.Object.createWithMixins(Ember.TargetActionSupport,{
+        action: 'anEvent'
+      });
+  ok(true === obj.triggerAction({target: targetObj}), "a valid target and action were specified");
+});
+
+test("it should use the action specified in the argument", function(){
+  expect(2);
+
+  var obj = Ember.Object.createWithMixins(Ember.TargetActionSupport,{
+    target: Ember.Object.create({
+      anEvent: function() {
+        ok(true, "anEvent method was called");
+      }
+    })
+  });
+  ok(true === obj.triggerAction({action: 'anEvent'}), "a valid target and action were specified");
+});
+
+test("it should use the actionContext specified in the argument", function(){
+  expect(2);
+  var context = {},
+      obj = Ember.Object.createWithMixins(Ember.TargetActionSupport,{
+    target: Ember.Object.create({
+      anEvent: function(ctx) {
+        ok(context === ctx, "anEvent method was called with the expected context");
+      }
+    }),
+    action: 'anEvent'
+  });
+  ok(true === obj.triggerAction({actionContext: context}), "a valid target and action were specified");
 });

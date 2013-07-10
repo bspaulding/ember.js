@@ -1,18 +1,15 @@
-// ==========================================================================
-// Project:   Ember Handlebars Views
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require("ember-handlebars/ext");
 require("ember-views/views/view");
 require("ember-handlebars/controls/text_support");
 
+/**
+@module ember
+@submodule ember-handlebars
+*/
+
 var get = Ember.get, set = Ember.set;
 
 /**
-  @class
-
   The `Ember.TextArea` view class renders a
   [textarea](https://developer.mozilla.org/en/HTML/Element/textarea) element.
   It allows for binding Ember properties to the text area contents (`value`),
@@ -20,19 +17,36 @@ var get = Ember.get, set = Ember.set;
 
   ## Layout and LayoutName properties
 
-  Because HTML `textarea` elements do not contain inner HTML the `layout` and `layoutName` 
-  properties will not be applied. See `Ember.View`'s layout section for more information.
+  Because HTML `textarea` elements do not contain inner HTML the `layout` and
+  `layoutName` properties will not be applied. See `Ember.View`'s layout
+  section for more information.
 
+  ## HTML Attributes
+
+  By default `Ember.TextArea` provides support for `rows`, `cols`,
+  `placeholder`, `disabled`, `maxlength` and `tabindex` attributes on a
+  textarea. If you need to support  more attributes have a look at the
+  `attributeBindings` property in `Ember.View`'s HTML Attributes section.
+
+  To globally add support for additional attributes you can reopen
+  `Ember.TextArea` or `Ember.TextSupport`.
+
+  ```javascript
+  Ember.TextSupport.reopen({
+    attributeBindings: ["required"]
+  })
+  ```
+
+  @class TextArea
+  @namespace Ember
   @extends Ember.View
-  @extends Ember.TextSupport
+  @uses Ember.TextSupport
 */
-Ember.TextArea = Ember.View.extend(Ember.TextSupport,
-/** @scope Ember.TextArea.prototype */ {
-
+Ember.TextArea = Ember.View.extend(Ember.TextSupport, {
   classNames: ['ember-text-area'],
 
   tagName: "textarea",
-  attributeBindings: ['rows', 'cols'],
+  attributeBindings: ['rows', 'cols', 'name'],
   rows: null,
   cols: null,
 
@@ -45,7 +59,6 @@ Ember.TextArea = Ember.View.extend(Ember.TextSupport,
     }
   }, 'value'),
 
-  /** @private */
   init: function() {
     this._super();
     this.on("didInsertElement", this, this._updateElementValue);

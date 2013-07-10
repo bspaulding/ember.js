@@ -1,30 +1,39 @@
-// ==========================================================================
-// Project:  Ember Metal
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals Node */
 
 require('ember-metal/core');
 
 /**
-  @class
+@module ember-metal
+*/
 
+/**
   Platform specific methods and feature detectors needed by the framework.
 
-  @name Ember.platform
+  @class platform
+  @namespace Ember
+  @static
 */
 var platform = Ember.platform = {};
 
+
 /**
-  Identical to Object.create().  Implements if not available natively.
-  @memberOf Ember.platform
-  @name create
+  Identical to `Object.create()`. Implements if not available natively.
+
+  @method create
+  @for Ember
 */
 Ember.create = Object.create;
 
-if (!Ember.create) {
-  /** @private */
+// IE8 has Object.create but it couldn't treat property descripters.
+if (Ember.create) {
+  if (Ember.create({a: 1}, {a: {value: 2}}).a !== 2) {
+    Ember.create = null;
+  }
+}
+
+// STUB_OBJECT_CREATE allows us to override other libraries that stub
+// Object.create different than we would prefer
+if (!Ember.create || Ember.ENV.STUB_OBJECT_CREATE) {
   var K = function() {};
 
   Ember.create = function(obj, props) {
@@ -45,7 +54,6 @@ if (!Ember.create) {
   Ember.create.isSimulated = true;
 }
 
-/** @private */
 var defineProperty = Object.defineProperty;
 var canRedefineProperties, canDefinePropertyOnDOM;
 
@@ -54,7 +62,6 @@ if (defineProperty) {
   try {
     defineProperty({}, 'a',{get:function(){}});
   } catch (e) {
-    /** @private */
     defineProperty = null;
   }
 }
@@ -62,7 +69,6 @@ if (defineProperty) {
 if (defineProperty) {
   // Detects a bug in Android <3.2 where you cannot redefine a property using
   // Object.defineProperty once accessors have already been set.
-  /** @private */
   canRedefineProperties = (function() {
     var obj = {};
 
@@ -85,7 +91,6 @@ if (defineProperty) {
 
   // This is for Safari 5.0, which supports Object.defineProperty, but not
   // on DOM nodes.
-  /** @private */
   canDefinePropertyOnDOM = (function(){
     try {
       defineProperty(document.createElement('div'), 'definePropertyOnDOM', {});
@@ -96,10 +101,8 @@ if (defineProperty) {
   })();
 
   if (!canRedefineProperties) {
-    /** @private */
     defineProperty = null;
   } else if (!canDefinePropertyOnDOM) {
-    /** @private */
     defineProperty = function(obj, keyName, desc){
       var isNode;
 
@@ -120,23 +123,27 @@ if (defineProperty) {
 }
 
 /**
-  Identical to Object.defineProperty().  Implements as much functionality
+@class platform
+@namespace Ember
+*/
+
+/**
+  Identical to `Object.defineProperty()`. Implements as much functionality
   as possible if not available natively.
 
-  @memberOf Ember.platform
-  @name defineProperty
+  @method defineProperty
   @param {Object} obj The object to modify
   @param {String} keyName property name to modify
   @param {Object} desc descriptor hash
-  @returns {void}
+  @return {void}
 */
 platform.defineProperty = defineProperty;
 
 /**
   Set to true if the platform supports native getters and setters.
 
-  @memberOf Ember.platform
-  @name hasPropertyAccessors
+  @property hasPropertyAccessors
+  @final
 */
 platform.hasPropertyAccessors = true;
 

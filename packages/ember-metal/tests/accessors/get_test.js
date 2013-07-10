@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require('ember-metal/~tests/props_helper');
 
 module('Ember.get');
@@ -40,6 +34,34 @@ testBoth("should call unknownProperty on watched values if the value is undefine
   });
 
   equal(get(obj, 'foo'), 'FOO', 'should return value from unknown');
+});
+
+test('warn on attempts to get a property of undefined', function(){
+  expectAssertion(function() {
+    Ember.get(undefined, 'aProperty');
+  }, /Cannot call get with 'aProperty' on an undefined object/i);
+});
+
+test('warn on attempts to get a property path of undefined', function(){
+  expectAssertion(function(){
+    Ember.get(undefined, 'aProperty.on.aPath');
+  }, /Cannot call get with 'aProperty.on.aPath' on an undefined object/);
+});
+
+test('warn on attemps to get a falsy property', function() {
+  var obj = {};
+  expectAssertion(function() {
+    Ember.get(obj, null);
+  }, /Cannot call get with null key/);
+  expectAssertion(function() {
+    Ember.get(obj, NaN);
+  }, /Cannot call get with NaN key/);
+  expectAssertion(function() {
+    Ember.get(obj, undefined);
+  }, /Cannot call get with undefined key/);
+  expectAssertion(function() {
+    Ember.get(obj, false);
+  }, /Cannot call get with false key/);
 });
 
 // ..........................................................

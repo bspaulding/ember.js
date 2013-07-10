@@ -1,9 +1,18 @@
-// ==========================================================================
-// Project:  Ember Routing
-// Copyright: ©2012 Tilde Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
+require('ember-runtime');
+require('ember-views');
+require('ember-handlebars');
+require('ember-routing/vendor/route-recognizer');
+require('ember-routing/vendor/router');
+require('ember-routing/system');
+require('ember-routing/helpers');
+require('ember-routing/ext');
+require('ember-routing/location');
 
-require('ember-states');
-require('ember-routing/route');
-require('ember-routing/router');
+/**
+Ember Routing
+
+@module ember
+@submodule ember-routing
+@requires ember-states
+@requires ember-views
+*/

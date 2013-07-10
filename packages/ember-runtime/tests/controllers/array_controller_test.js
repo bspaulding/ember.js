@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require('ember-runtime/~tests/suites/mutable_array');
 
 module("ember-runtime/controllers/array_controller_test");
@@ -27,3 +21,17 @@ Ember.MutableArrayTests.extend({
     return obj.toArray ? obj.toArray() : obj.slice();
   }
 }).run();
+
+test("defaults it's `content` to an empty array", function () {
+  var Controller = Ember.ArrayController.extend();
+  deepEqual(Controller.create().get("content"), [], "`ArrayController` defaults it's content to an empty array");
+  equal(Controller.create().get('firstObject'), undefined, 'can fetch firstObject');
+  equal(Controller.create().get('lastObject'), undefined, 'can fetch lastObject');
+});
+
+
+test("Ember.ArrayController length property works even if content was not set initially", function() {
+  var controller = Ember.ArrayController.create();
+  controller.pushObject('item');
+  equal(controller.get('length'), 1);
+});

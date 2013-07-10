@@ -1,18 +1,19 @@
 /*global ViewTest:true*/
 
-var view;
+var originalLookup = Ember.lookup, lookup, view;
 
 module("views/view/view_lifecycle_test - pre-render", {
   setup: function() {
-
+    Ember.lookup = lookup = {};
   },
 
   teardown: function() {
-    if (view) { 
+    if (view) {
       Ember.run(function(){
         view.destroy();
       });
     }
+    Ember.lookup = originalLookup;
   }
 });
 
@@ -23,14 +24,16 @@ function tmpl(str) {
 }
 
 test("should create and append a DOM element after bindings have synced", function() {
-  window.ViewTest = {};
+  var ViewTest;
+
+  lookup.ViewTest = ViewTest = {};
 
   Ember.run(function() {
     ViewTest.fakeController = Ember.Object.create({
       fakeThing: 'controllerPropertyValue'
     });
 
-    view = Ember.View.create({
+    view = Ember.View.createWithMixins({
       fooBinding: 'ViewTest.fakeController.fakeThing',
 
       render: function(buffer) {
@@ -44,7 +47,6 @@ test("should create and append a DOM element after bindings have synced", functi
   });
 
   equal(view.$().text(), 'controllerPropertyValue', "renders and appends after bindings have synced");
-  window.ViewTest = undefined;
 });
 
 test("should throw an exception if trying to append a child before rendering has begun", function() {
@@ -89,10 +91,10 @@ module("views/view/view_lifecycle_test - in render", {
   },
 
   teardown: function() {
-    if (view) { 
+    if (view) {
       Ember.run(function(){
         view.destroy();
-      }); 
+      });
     }
   }
 });
@@ -120,10 +122,8 @@ test("appendChild should work inside a template", function() {
      "The appended child is visible");
 });
 
-test("rerender should work inside a template", function() {
-  try {
-    Ember.TESTING_DEPRECATION = true;
-
+test("rerender should throw inside a template", function() {
+  raises(function() {
     Ember.run(function() {
       var renderCount = 0;
       view = Ember.View.create({
@@ -148,19 +148,12 @@ test("rerender should work inside a template", function() {
 
       view.appendTo("#qunit-fixture");
     });
-  } finally {
-    Ember.TESTING_DEPRECATION = false;
-  }
-
-  equal(view.$('div:nth-child(1)').length, 1);
-  equal(view.$('div:nth-child(1)').text(), '2');
-  equal(view.$('div:nth-child(2)').length, 1);
-  equal(view.$('div:nth-child(2)').text(), 'Inside child2');
+  }, /Something you did caused a view to re-render after it rendered but before it was inserted into the DOM./);
 });
 
 module("views/view/view_lifecycle_test - in DOM", {
   teardown: function() {
-    if (view) { 
+    if (view) {
       Ember.run(function(){
         view.destroy();
       });
@@ -194,19 +187,21 @@ test("should replace DOM representation if rerender() is called after element is
         buffer.push("Do not taunt happy fun "+value);
       },
 
-      shape: 'sphere'
+      context: Ember.Object.create({
+        shape: 'sphere'
+      })
     });
 
     view.append();
   });
 
   equal(view.$().text(), "Do not taunt happy fun sphere", "precond - creates DOM element");
-  
-  view.set('shape', 'ball');
+
+  view.set('context.shape', 'ball');
   Ember.run(function() {
     view.rerender();
   });
-  
+
   equal(view.$().text(), "Do not taunt happy fun ball", "rerenders DOM element when rerender() is called");
 });
 
@@ -301,10 +296,10 @@ test("should throw an exception when rerender is called after view is destroyed"
 
   raises(function() {
     view.rerender();
-  }, null, "throws an exception when calling appendChild");
+  }, null, "throws an exception when calling rerender");
 });
 
-test("should throw an exception when rerender is called after view is destroyed", function() {
+test("should throw an exception when destroyElement is called after view is destroyed", function() {
   Ember.run(function() {
     view = Ember.View.create({
       template: tmpl('foo')
@@ -319,6 +314,6 @@ test("should throw an exception when rerender is called after view is destroyed"
 
   raises(function() {
     view.destroyElement();
-  }, null, "throws an exception when calling appendChild");
+  }, null, "throws an exception when calling destroyElement");
 });
 

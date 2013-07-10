@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 module('system/run_loop/schedule_test');
 
 test('scheduling item in queue should defer until finished', function() {
@@ -41,22 +35,43 @@ test('prior queues should be flushed before moving on to next queue', function()
   var order = [];
 
   Ember.run(function() {
+    var runLoop = Ember.run.currentRunLoop;
+    ok(runLoop, 'run loop present');
+
     Ember.run.schedule('sync', function() {
       order.push('sync');
+      equal(runLoop, Ember.run.currentRunLoop, 'same run loop used');
     });
     Ember.run.schedule('actions', function() {
       order.push('actions');
+      equal(runLoop, Ember.run.currentRunLoop, 'same run loop used');
+
       Ember.run.schedule('actions', function() {
         order.push('actions');
+        equal(runLoop, Ember.run.currentRunLoop, 'same run loop used');
       });
+
       Ember.run.schedule('sync', function() {
         order.push('sync');
+        equal(runLoop, Ember.run.currentRunLoop, 'same run loop used');
       });
     });
-    Ember.run.schedule('timers', function() {
-      order.push('timers');
+    Ember.run.schedule('destroy', function() {
+      order.push('destroy');
+      equal(runLoop, Ember.run.currentRunLoop, 'same run loop used');
     });
   });
 
-  deepEqual(order, ['sync', 'actions', 'sync', 'actions', 'timers']);
+  deepEqual(order, ['sync', 'actions', 'sync', 'actions', 'destroy']);
+});
+
+test('makes sure it does not trigger an autorun during testing', function() {
+  expectAssertion(function() {
+    Ember.run.schedule('actions', function() {});
+  }, /wrap any code with asynchronous side-effects in an Ember.run/);
+
+  // make sure not just the first violation is asserted.
+  expectAssertion(function() {
+    Ember.run.schedule('actions', function() {});
+  }, /wrap any code with asynchronous side-effects in an Ember.run/);
 });

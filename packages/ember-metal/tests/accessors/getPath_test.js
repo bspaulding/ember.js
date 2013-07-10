@@ -1,8 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals Foo:true $foo:true */
 
 var obj, moduleOpts = {
@@ -12,17 +7,17 @@ var obj, moduleOpts = {
         bar: {
           baz: { biff: 'BIFF' }
         }
-      }
-
+      },
+      falseValue: false
     };
 
-    Foo = {
+    window.Foo = {
       bar: {
         baz: { biff: 'FooBiff' }
       }
     };
 
-    $foo = {
+    window.$foo = {
       bar: {
         baz: { biff: '$FOOBIFF' }
       }
@@ -30,9 +25,9 @@ var obj, moduleOpts = {
   },
 
   teardown: function() {
-    obj = null;
-    Foo = null;
-    $foo = null;
+    obj = undefined;
+    window.Foo = undefined;
+    window.$foo = undefined;
   }
 };
 
@@ -60,6 +55,10 @@ test('[obj, this.foo.bar] -> obj.foo.bar', function() {
 
 test('[obj, this.Foo.bar] -> (null)', function() {
   deepEqual(Ember.get(obj, 'this.Foo.bar'), undefined);
+});
+
+test('[obj, falseValue.notDefined] -> (null)', function() {
+  deepEqual(Ember.get(obj, 'falseValue.notDefined'), undefined);
 });
 
 // ..........................................................

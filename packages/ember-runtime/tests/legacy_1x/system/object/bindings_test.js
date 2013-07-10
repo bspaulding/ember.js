@@ -1,10 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 /*globals TestNamespace:true*/
 
 /*
@@ -64,11 +57,11 @@ test("bind(TestNamespace.fromObject.bar) should follow absolute path", function(
   Ember.run(function(){
     // create binding
     testObject.bind("foo", "TestNamespace.fromObject.bar");
-    
+
     // now make a change to see if the binding triggers.
     set(fromObject, "bar", "changedValue");
   });
-  
+
   equal("changedValue", get(testObject, "foo"), "testObject.foo");
 });
 
@@ -80,7 +73,7 @@ test("bind(.bar) should bind to relative path", function() {
     // now make a change to see if the binding triggers.
     set(testObject, "bar", "changedValue") ;
   });
-  
+
   equal("changedValue", get(testObject, "foo"), "testObject.foo");
 });
 
@@ -121,46 +114,46 @@ module("fooBinding method", fooBindingModuleOpts);
 test("fooBinding: TestNamespace.fromObject.bar should follow absolute path", function() {
   // create binding
   Ember.run(function(){
-    testObject = TestObject.create({
+    testObject = TestObject.createWithMixins({
       fooBinding: "TestNamespace.fromObject.bar"
     }) ;
 
     // now make a change to see if the binding triggers.
     set(fromObject, "bar", "changedValue") ;
   });
-  
+
 
   equal("changedValue", get(testObject, "foo"), "testObject.foo");
 });
 
 test("fooBinding: .bar should bind to relative path", function() {
   Ember.run(function(){
-    testObject = TestObject.create({
+    testObject = TestObject.createWithMixins({
       fooBinding: "bar"
     });
     // now make a change to see if the binding triggers.
     set(testObject, "bar", "changedValue");
   });
-  
+
   equal("changedValue", get(testObject, "foo"), "testObject.foo");
 });
 
 test('fooBinding: should disconnect bindings when destroyed', function () {
   Ember.run(function(){
-    testObject = TestObject.create({
+    testObject = TestObject.createWithMixins({
       fooBinding: "TestNamespace.fromObject.bar"
     });
 
     set(TestNamespace.fromObject, 'bar', 'BAZ');
   });
-  
+
   equal(get(testObject, 'foo'), 'BAZ', 'binding should have synced');
 
   Ember.destroy(testObject);
-  
+
   Ember.run(function(){
     set(TestNamespace.fromObject, 'bar', 'BIFF');
   });
-  
+
   ok(get(testObject, 'foo') !== 'bar', 'binding should not have synced');
 });

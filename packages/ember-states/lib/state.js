@@ -1,17 +1,22 @@
 var get = Ember.get, set = Ember.set;
 
 /**
-  @class
+@module ember
+@submodule ember-states
+*/
 
+/**
+  @class State
+  @namespace Ember
   @extends Ember.Object
+  @uses Ember.Evented
 */
 Ember.State = Ember.Object.extend(Ember.Evented,
 /** @scope Ember.State.prototype */{
-  isState: true,
-
   /**
     A reference to the parent state.
 
+    @property parentState
     @type Ember.State
   */
   parentState: null,
@@ -20,6 +25,7 @@ Ember.State = Ember.Object.extend(Ember.Evented,
   /**
     The name of this state.
 
+    @property name
     @type String
   */
   name: null,
@@ -27,8 +33,8 @@ Ember.State = Ember.Object.extend(Ember.Evented,
   /**
     The full path to this state.
 
+    @property path
     @type String
-    @readOnly
   */
   path: Ember.computed(function() {
     var parentPath = get(this, 'parentState.path'),
@@ -39,13 +45,16 @@ Ember.State = Ember.Object.extend(Ember.Evented,
     }
 
     return path;
-  }).property().cacheable(),
+  }),
 
   /**
     @private
 
-    Override the default event firing from Ember.Evented to
+    Override the default event firing from `Ember.Evented` to
     also call methods with the given name.
+
+    @method trigger
+    @param name
   */
   trigger: function(name) {
     if (this[name]) {
@@ -54,9 +63,8 @@ Ember.State = Ember.Object.extend(Ember.Evented,
     this._super.apply(this, arguments);
   },
 
-  /** @private */
   init: function() {
-    var states = get(this, 'states'), foundStates;
+    var states = get(this, 'states');
     set(this, 'childStates', Ember.A());
     set(this, 'eventTransitions', get(this, 'eventTransitions') || {});
 
@@ -90,26 +98,48 @@ Ember.State = Ember.Object.extend(Ember.Evented,
       }
     }
 
-    set(this, 'pathsCache', {});
-    set(this, 'pathsCacheNoContext', {});
+    // pathsCaches is a nested hash of the form:
+    //   pathsCaches[stateManagerTypeGuid][path] == transitions_hash
+    set(this, 'pathsCaches', {});
   },
 
-  /** @private */
+  setPathsCache: function(stateManager, path, transitions) {
+    var stateManagerTypeGuid = Ember.guidFor(stateManager.constructor),
+      pathsCaches = get(this, 'pathsCaches'),
+      pathsCacheForManager = pathsCaches[stateManagerTypeGuid] || {};
+
+    pathsCacheForManager[path] = transitions;
+    pathsCaches[stateManagerTypeGuid] = pathsCacheForManager;
+  },
+
+  getPathsCache: function(stateManager, path) {
+    var stateManagerTypeGuid = Ember.guidFor(stateManager.constructor),
+      pathsCaches = get(this, 'pathsCaches'),
+      pathsCacheForManager = pathsCaches[stateManagerTypeGuid] || {};
+
+    return pathsCacheForManager[path];
+  },
+
   setupChild: function(states, name, value) {
     if (!value) { return false; }
+    var instance;
 
-    if (value.isState) {
+    if (value instanceof Ember.State) {
       set(value, 'name', name);
+      instance = value;
+      instance.container = this.container;
     } else if (Ember.State.detect(value)) {
-      value = value.create({
-        name: name
+      instance = value.create({
+        name: name,
+        container: this.container
       });
     }
 
-    if (value.isState) {
-      set(value, 'parentState', this);
-      get(this, 'childStates').pushObject(value);
-      states[name] = value;
+    if (instance instanceof Ember.State) {
+      set(instance, 'parentState', this);
+      get(this, 'childStates').pushObject(instance);
+      states[name] = instance;
+      return instance;
     }
   },
 
@@ -126,25 +156,29 @@ Ember.State = Ember.Object.extend(Ember.Evented,
 
   /**
     A Boolean value indicating whether the state is a leaf state
-    in the state hierarchy. This is false if the state has child
+    in the state hierarchy. This is `false` if the state has child
     states; otherwise it is true.
 
+    @property isLeaf
     @type Boolean
   */
   isLeaf: Ember.computed(function() {
     return !get(this, 'childStates').length;
-  }).cacheable(),
+  }),
 
   /**
     A boolean value indicating whether the state takes a context.
     By default we assume all states take contexts.
+
+    @property hasContext
+    @default true
   */
   hasContext: true,
 
   /**
     This is the default transition event.
 
-    @event
+    @event setup
     @param {Ember.StateManager} manager
     @param context
     @see Ember.StateManager#transitionEvent
@@ -154,7 +188,7 @@ Ember.State = Ember.Object.extend(Ember.Evented,
   /**
     This event fires when the state is entered.
 
-    @event
+    @event enter
     @param {Ember.StateManager} manager
   */
   enter: Ember.K,
@@ -162,60 +196,65 @@ Ember.State = Ember.Object.extend(Ember.Evented,
   /**
     This event fires when the state is exited.
 
-    @event
+    @event exit
     @param {Ember.StateManager} manager
   */
   exit: Ember.K
 });
 
-var Event = Ember.$ && Ember.$.Event;
-
-Ember.State.reopenClass(
-/** @scope Ember.State */{
+Ember.State.reopenClass({
 
   /**
-  @static
+    Creates an action function for transitioning to the named state while
+    preserving context.
 
-  Creates an action function for transitioning to the named state while preserving context.
+    The following example StateManagers are equivalent:
 
-  The following example StateManagers are equivalent:
+    ```javascript
+    aManager = Ember.StateManager.create({
+      stateOne: Ember.State.create({
+        changeToStateTwo: Ember.State.transitionTo('stateTwo')
+      }),
+      stateTwo: Ember.State.create({})
+    })
 
-      aManager = Ember.StateManager.create({
-        stateOne: Ember.State.create({
-          changeToStateTwo: Ember.State.transitionTo('stateTwo')
-        }),
-        stateTwo: Ember.State.create({})
-      })
+    bManager = Ember.StateManager.create({
+      stateOne: Ember.State.create({
+        changeToStateTwo: function(manager, context){
+          manager.transitionTo('stateTwo', context)
+        }
+      }),
+      stateTwo: Ember.State.create({})
+    })
+    ```
 
-      bManager = Ember.StateManager.create({
-        stateOne: Ember.State.create({
-          changeToStateTwo: function(manager, context){
-            manager.transitionTo('stateTwo', context)
-          }
-        }),
-        stateTwo: Ember.State.create({})
-      })
-
-  @param {String} target
+    @method transitionTo
+    @static
+    @param {String} target
   */
+
   transitionTo: function(target) {
-    var event = function(stateManager, context) {
-      if (Event && context instanceof Event) {
-        if (context.hasOwnProperty('context')) {
-          context = context.context;
-        } else {
-          // If we received an event and it doesn't contain
-          // a context, don't pass along a superfluous
-          // context to the target of the event.
-          return stateManager.transitionTo(target);
+
+    var transitionFunction = function(stateManager, contextOrEvent) {
+      var contexts = [],
+          Event = Ember.$ && Ember.$.Event;
+
+      if (contextOrEvent && (Event && contextOrEvent instanceof Event)) {
+        if (contextOrEvent.hasOwnProperty('contexts')) {
+          contexts = contextOrEvent.contexts.slice();
         }
       }
+      else {
+        contexts = [].slice.call(arguments, 1);
+      }
 
-      stateManager.transitionTo(target, context);
+      contexts.unshift(target);
+      stateManager.transitionTo.apply(stateManager, contexts);
     };
 
-    event.transitionTarget = target;
+    transitionFunction.transitionTarget = target;
 
-    return event;
+    return transitionFunction;
   }
+
 });

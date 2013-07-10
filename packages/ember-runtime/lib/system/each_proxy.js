@@ -1,12 +1,10 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require('ember-runtime/system/object');
 require('ember-runtime/mixins/array');
 
+/**
+@module ember
+@submodule ember-runtime
+*/
 
 
 var set = Ember.set, get = Ember.get, guidFor = Ember.guidFor;
@@ -29,13 +27,12 @@ var EachArray = Ember.Object.extend(Ember.Array, {
   length: Ember.computed(function() {
     var content = this._content;
     return content ? get(content, 'length') : 0;
-  }).property().cacheable()
+  })
 
 });
 
 var IS_OBSERVER = /^.+:(before|change)$/;
 
-/** @private */
 function addObserverForContentKey(content, keyName, proxy, idx, loc) {
   var objects = proxy._objects, guid;
   if (!objects) objects = proxy._objects = {};
@@ -46,7 +43,7 @@ function addObserverForContentKey(content, keyName, proxy, idx, loc) {
       Ember.addBeforeObserver(item, keyName, proxy, 'contentKeyWillChange');
       Ember.addObserver(item, keyName, proxy, 'contentKeyDidChange');
 
-      // keep track of the indicies each item was found at so we can map
+      // keep track of the index each item was found at so we can map
       // it back when the obj changes.
       guid = guidFor(item);
       if (!objects[guid]) objects[guid] = [];
@@ -55,7 +52,6 @@ function addObserverForContentKey(content, keyName, proxy, idx, loc) {
   }
 }
 
-/** @private */
 function removeObserverForContentKey(content, keyName, proxy, idx, loc) {
   var objects = proxy._objects;
   if (!objects) objects = proxy._objects = {};
@@ -75,13 +71,13 @@ function removeObserverForContentKey(content, keyName, proxy, idx, loc) {
 }
 
 /**
-  @private
-  @class
-
-  This is the object instance returned when you get the @each property on an
-  array.  It uses the unknownProperty handler to automatically create
+  This is the object instance returned when you get the `@each` property on an
+  array. It uses the unknownProperty handler to automatically create
   EachArray instances for property names.
 
+  @private
+  @class EachProxy
+  @namespace Ember
   @extends Ember.Object
 */
 Ember.EachProxy = Ember.Object.extend({
@@ -100,7 +96,11 @@ Ember.EachProxy = Ember.Object.extend({
 
   /**
     You can directly access mapped properties by simply requesting them.
-    The unknownProperty handler will generate an EachArray of each item.
+    The `unknownProperty` handler will generate an EachArray of each item.
+
+    @method unknownProperty
+    @param keyName {String}
+    @param value {*}
   */
   unknownProperty: function(keyName, value) {
     var ret;
@@ -115,7 +115,7 @@ Ember.EachProxy = Ember.Object.extend({
   // Invokes whenever the content array itself changes.
 
   arrayWillChange: function(content, idx, removedCnt, addedCnt) {
-    var keys = this._keys, key, array, lim;
+    var keys = this._keys, key, lim;
 
     lim = removedCnt>0 ? idx+removedCnt : -1;
     Ember.beginPropertyChanges(this);
@@ -133,7 +133,7 @@ Ember.EachProxy = Ember.Object.extend({
   },
 
   arrayDidChange: function(content, idx, removedCnt, addedCnt) {
-    var keys = this._keys, key, array, lim;
+    var keys = this._keys, key, lim;
 
     lim = addedCnt>0 ? idx+addedCnt : -1;
     Ember.beginPropertyChanges(this);

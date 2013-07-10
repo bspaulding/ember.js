@@ -1,10 +1,11 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
-module('Ember.alias');
+module('Ember.alias',{
+  setup: function(){
+    Ember.TESTING_DEPRECATION = true;
+  },
+  teardown: function(){
+    Ember.TESTING_DEPRECATION = false;
+  }
+});
 
 function validateAlias(obj) {
   var get = Ember.get;

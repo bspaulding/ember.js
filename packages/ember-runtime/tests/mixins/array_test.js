@@ -1,8 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals testBoth */
 
 require('ember-runtime/~tests/props_helper');
@@ -42,12 +37,7 @@ var TestArray = Ember.Object.extend(Ember.Array, {
 
   length: Ember.computed(function() {
     return this._content.length;
-  }).property().cacheable(),
-
-  slice: function() {
-    return this._content.slice();
-  }
-
+  })
 });
 
 
@@ -71,6 +61,32 @@ Ember.ArrayTests.extend({
 
 }).run();
 
+test("the return value of slice has Ember.Array applied", function(){
+  var x = Ember.Object.createWithMixins(Ember.Array, {
+    length: 0
+  });
+  var y = x.slice(1);
+  equal(Ember.Array.detect(y), true, "mixin should be applied");
+});
+
+test("slice supports negative index arguments", function(){
+  var testArray = new TestArray([1,2,3,4]);
+
+  deepEqual(testArray.slice(-2),      [3, 4],     'slice(-2)');
+  deepEqual(testArray.slice(-2, -1),  [3],        'slice(-2, -1');
+  deepEqual(testArray.slice(-2, -2),  [],         'slice(-2, -2)');
+  deepEqual(testArray.slice(-1, -2),  [],         'slice(-1, -2)');
+
+  deepEqual(testArray.slice(-4, 1),   [1],        'slice(-4, 1)');
+  deepEqual(testArray.slice(-4, 5),   [1,2,3,4],  'slice(-4, 5)');
+  deepEqual(testArray.slice(-4),      [1,2,3,4],  'slice(-4)');
+
+  deepEqual(testArray.slice(0, -1),   [1,2,3],    'slice(0, -1)');
+  deepEqual(testArray.slice(0, -4),   [],         'slice(0, -4)');
+  deepEqual(testArray.slice(0, -3),   [1],        'slice(0, -3)');
+
+});
+
 // ..........................................................
 // CONTENT DID CHANGE
 //
@@ -92,7 +108,7 @@ module('mixins/array/arrayContent[Will|Did]Change');
 
 test('should notify observers of []', function() {
 
-  obj = DummyArray.create({
+  obj = DummyArray.createWithMixins({
     _count: 0,
     enumerablePropertyDidChange: Ember.observer(function() {
       this._count++;
@@ -114,7 +130,7 @@ test('should notify observers of []', function() {
 
 module('notify observers of length', {
   setup: function() {
-    obj = DummyArray.create({
+    obj = DummyArray.createWithMixins({
       _after: 0,
       lengthDidChange: Ember.observer(function() {
         this._after++;
@@ -164,7 +180,7 @@ module('notify array observers', {
   setup: function() {
     obj = DummyArray.create();
 
-    observer = Ember.Object.create({
+    observer = Ember.Object.createWithMixins({
       _before: null,
       _after: null,
 
@@ -229,7 +245,7 @@ module('notify enumerable observers as well', {
   setup: function() {
     obj = DummyArray.create();
 
-    observer = Ember.Object.create({
+    observer = Ember.Object.createWithMixins({
       _before: null,
       _after: null,
 
@@ -372,14 +388,14 @@ test('modifying the array should also indicate the isDone prop itself has change
 
 
 testBoth("should be clear caches for computed properties that have dependent keys on arrays that are changed after object initialization", function(get, set) {
-  var obj = Ember.Object.create({
+  var obj = Ember.Object.createWithMixins({
     init: function() {
       set(this, 'resources', Ember.A());
     },
 
     common: Ember.computed(function() {
       return get(get(this, 'resources').objectAt(0), 'common');
-    }).property('resources.@each.common').cacheable()
+    }).property('resources.@each.common')
   });
 
   get(obj, 'resources').pushObject(Ember.Object.create({ common: "HI!" }));
@@ -392,7 +408,7 @@ testBoth("should be clear caches for computed properties that have dependent key
 testBoth("observers that contain @each in the path should fire only once the first time they are accessed", function(get, set) {
   var count = 0;
 
-  var obj = Ember.Object.create({
+  var obj = Ember.Object.createWithMixins({
     init: function() {
       // Observer fires once when resources changes
       set(this, 'resources', Ember.A());

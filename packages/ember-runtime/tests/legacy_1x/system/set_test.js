@@ -1,10 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 // NOTE: This test is adapted from the 1.x series of unit tests.  The tests
 // are the same except for places where we intend to break the API we instead
 // validate that we warn the developer appropriately.
@@ -48,7 +41,7 @@ test("new Ember.Set([1,2,3]) should create set with three items in them", functi
 });
 
 test("new Ember.Set() should accept anything that implements Ember.Array", function() {
-  var arrayLikeObject = Ember.Object.create(Ember.Array, {
+  var arrayLikeObject = Ember.Object.createWithMixins(Ember.Array, {
     _content: [a,b,c],
     length: 3,
     objectAt: function(idx) { return this._content[idx]; }
@@ -297,7 +290,7 @@ module("Ember.Set.pop + Ember.Set.copy", {
 test("the pop() should remove an arbitrary object from the set", function() {
   var oldLength = set.length ;
   var obj = set.pop();
-  ok(!Ember.none(obj), 'pops up an item');
+  ok(!Ember.isNone(obj), 'pops up an item');
   equal(set.length, oldLength-1, 'length shorter by 1');
 });
 

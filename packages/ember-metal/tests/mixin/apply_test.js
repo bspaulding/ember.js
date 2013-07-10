@@ -1,8 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals raises */
 
 module('Ember.Mixin.apply');
@@ -30,9 +25,9 @@ test('applying anonymous properties', function() {
 });
 
 test('applying null values', function() {
-  raises(function() {
+  expectAssertion(function() {
     Ember.mixin({}, null);
-  }, Error);
+  });
 });
 
 test('applying a property with an undefined value', function() {

@@ -1,20 +1,23 @@
 {
     "predef": [
+        "define",
         "console",
         "Ember",
         "DS",
         "Handlebars",
         "Metamorph",
-        "ember_assert",
-        "ember_warn",
-        "ember_deprecate",
-        "ember_deprecateFunc",
+        "RSVP",
         "require",
+        "requireModule",
         "equal",
+        "notEqual",
+        "notStrictEqual",
         "test",
+        "asyncTest",
         "testBoth",
         "testWithDefault",
         "raises",
+        "throws",
         "deepEqual",
         "start",
         "stop",
@@ -22,11 +25,16 @@
         "strictEqual",
         "module",
         "expect",
-        "minispade"
+        "minispade",
+        "expectAssertion",
+
+        // A safe subset of "browser:true":
+        "window", "location", "document", "XMLSerializer",
+        "setTimeout", "clearTimeout", "setInterval", "clearInterval"
     ],
 
     "node" : false,
-    "browser" : true,
+    "browser" : false,
 
     "boss" : true,
     "curly": false,

@@ -1,17 +1,15 @@
-// ==========================================================================
-// Project:   Ember - JavaScript Application Framework
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            Portions ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require('ember-views/views/states/default');
 
-var get = Ember.get, set = Ember.set, meta = Ember.meta;
+/**
+@module ember
+@submodule ember-views
+*/
 
-Ember.View.states.hasElement = {
-  parentState: Ember.View.states._default,
+var get = Ember.get, set = Ember.set;
 
+var hasElement = Ember.View.states.hasElement = Ember.create(Ember.View.states._default);
+
+Ember.merge(hasElement, {
   $: function(view, sel) {
     var elem = get(view, 'element');
     return sel ? Ember.$(sel, elem) : Ember.$(elem);
@@ -37,7 +35,7 @@ Ember.View.states.hasElement = {
   // once the view has been inserted into the DOM, rerendering is
   // deferred to allow bindings to synchronize.
   rerender: function(view) {
-    view._notifyWillRerender();
+    view.triggerRecursively('willClearRender');
 
     view.clearRenderedChildren();
 
@@ -80,13 +78,34 @@ Ember.View.states.hasElement = {
     } else {
       return true; // continue event propagation
     }
-  }
-};
+  },
 
-Ember.View.states.inDOM = {
-  parentState: Ember.View.states.hasElement,
+  invokeObserver: function(target, observer) {
+    observer.call(target);
+  }
+});
+
+var inDOM = Ember.View.states.inDOM = Ember.create(hasElement);
+
+Ember.merge(inDOM, {
+  enter: function(view) {
+    // Register the view for event handling. This hash is used by
+    // Ember.EventDispatcher to dispatch incoming events.
+    if (!view.isVirtual) {
+      Ember.assert("Attempted to register a view with an id already in use: "+view.elementId, !Ember.View.views[view.elementId]);
+      Ember.View.views[view.elementId] = view;
+    }
+
+    view.addBeforeObserver('elementId', function() {
+      throw new Error("Changing a view's elementId after creation is not allowed");
+    });
+  },
+
+  exit: function(view) {
+    if (!this.isVirtual) delete Ember.View.views[view.elementId];
+  },
 
   insertElement: function(view, fn) {
     throw "You can't insert an element into the DOM that has already been inserted";
   }
-};
+});

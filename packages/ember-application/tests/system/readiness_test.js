@@ -1,5 +1,5 @@
 var jQuery, Application, application;
-var readyWasCalled, domReady, readyCallback;
+var readyWasCalled, domReady, readyCallbacks;
 
 // We are using a small mock of jQuery because jQuery is third-party code with
 // very well-defined semantics, and we want to confirm that a jQuery stub run
@@ -9,10 +9,11 @@ var readyWasCalled, domReady, readyCallback;
 module("Application readiness", {
   setup: function() {
     readyWasCalled = 0;
+    readyCallbacks = [];
 
     var jQueryInstance = {
       ready: function(callback) {
-        readyCallback = callback;
+        readyCallbacks.push(callback);
         if (jQuery.isReady) {
           domReady();
         }
@@ -28,7 +29,10 @@ module("Application readiness", {
     domReady = function() {
       if (domReadyCalled !== 0) { return; }
       domReadyCalled++;
-      readyCallback();
+      var i;
+      for (i=0; i<readyCallbacks.length; i++) {
+        readyCallbacks[i]();
+      }
     };
 
     Application = Ember.Application.extend({
@@ -52,83 +56,102 @@ module("Application readiness", {
 // it was triggered after initialization.
 
 test("Ember.Application's ready event is called right away if jQuery is already ready", function() {
+  var wasResolved = 0;
   jQuery.isReady = true;
 
   Ember.run(function() {
-    application = Application.create().initialize();
+    application = Application.create({ router: false });
+    application.then(function(){
+      wasResolved++;
+    });
+
+    equal(readyWasCalled, 0, "ready is not called until later");
+    equal(wasResolved, 0);
   });
 
+  equal(wasResolved, 1);
   equal(readyWasCalled, 1, "ready was called");
 
-  Ember.run(function() {
-    domReady();
-  });
+  domReady();
 
+  equal(wasResolved, 1);
   equal(readyWasCalled, 1, "application's ready was not called again");
 });
 
 test("Ember.Application's ready event is called after the document becomes ready", function() {
+  var wasResolved = 0;
   Ember.run(function() {
-    application = Application.create().initialize();
+    application = Application.create({ router: false });
+    application.then(function(){
+      wasResolved++;
+    });
+    equal(wasResolved, 0);
   });
 
   equal(readyWasCalled, 0, "ready wasn't called yet");
+  equal(wasResolved, 0);
 
-  Ember.run(function() {
-    domReady();
-  });
+  domReady();
 
+  equal(wasResolved, 1);
   equal(readyWasCalled, 1, "ready was called now that DOM is ready");
 });
 
 test("Ember.Application's ready event can be deferred by other components", function() {
-  Ember.run(function() {
-    application = Application.create();
-  });
-
-  application.deferReadiness();
+  var wasResolved = 0;
 
   Ember.run(function() {
-    application.initialize();
-  });
-
-  equal(readyWasCalled, 0, "ready wasn't called yet");
-
-  Ember.run(function() {
-    domReady();
+    application = Application.create({ router: false });
+    application.then(function(){
+      wasResolved++;
+    });
+    application.deferReadiness();
+    equal(wasResolved, 0);
   });
 
   equal(readyWasCalled, 0, "ready wasn't called yet");
+
+  domReady();
+
+  equal(readyWasCalled, 0, "ready wasn't called yet");
+  equal(wasResolved, 0);
 
   Ember.run(function() {
     application.advanceReadiness();
+    equal(readyWasCalled, 0);
+    equal(wasResolved, 0);
   });
 
+  equal(wasResolved, 1);
   equal(readyWasCalled, 1, "ready was called now all readiness deferrals are advanced");
 });
 
 test("Ember.Application's ready event can be deferred by other components", function() {
-  jQuery.isReady = true;
+  var wasResolved = 0;
+  jQuery.isReady = false;
 
   Ember.run(function() {
-    application = Application.create();
+    application = Application.create({ router: false });
+    application.deferReadiness();
+    application.then(function(){
+      wasResolved++;
+    });
+    equal(wasResolved, 0);
   });
 
-  application.deferReadiness();
-
-  Ember.run(function() {
-    application.initialize();
-  });
+  domReady();
 
   equal(readyWasCalled, 0, "ready wasn't called yet");
 
   Ember.run(function() {
     application.advanceReadiness();
+    equal(wasResolved, 0);
   });
 
+  equal(wasResolved, 1);
   equal(readyWasCalled, 1, "ready was called now all readiness deferrals are advanced");
 
-  raises(function() {
+  expectAssertion(function() {
     application.deferReadiness();
-  }, Error);
+  });
 });

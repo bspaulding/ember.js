@@ -1,10 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 /*global TestNamespace:true*/
 
 /*
@@ -87,7 +80,7 @@ test("deferred observing during bindings", function() {
     value2: 'value2'
   });
 
-  toObject = Ember.Object.create({
+  toObject = Ember.Object.createWithMixins({
     value1: 'value1',
     value2: 'value2',
 
@@ -143,20 +136,18 @@ module("one way binding", {
 
 test("fromObject change should propagate after flush", function() {
   Ember.run(function() {
-    set(fromObject, "value", "change") ;
-    equal(get(toObject, "value"), "start") ;
-    Ember.run.sync() ;
-    equal(get(toObject, "value"), "change") ;
+    set(fromObject, "value", "change");
+    equal(get(toObject, "value"), "start");
   });
+  equal(get(toObject, "value"), "change");
 });
 
 test("toObject change should NOT propagate", function() {
   Ember.run(function() {
-    set(toObject, "value", "change") ;
-    equal(get(fromObject, "value"), "start") ;
-    Ember.run.sync() ;
-    equal(get(fromObject, "value"), "start") ;
+    set(toObject, "value", "change");
+    equal(get(fromObject, "value"), "start");
   });
+  equal(get(fromObject, "value"), "start");
 });
 
 var first, second, third, binding1, binding2; // global variables
@@ -171,7 +162,7 @@ module("chained binding", {
     Ember.run(function() {
       first = Ember.Object.create({ output: 'first' }) ;
 
-      second = Ember.Object.create({
+      second = Ember.Object.createWithMixins({
         input: 'second',
         output: 'second',
 
@@ -197,15 +188,12 @@ test("changing first output should propograte to third after flush", function() 
     set(first, "output", "change") ;
     equal("change", get(first, "output"), "first.output") ;
     ok("change" !== get(third, "input"), "third.input") ;
-
-    var didChange = true;
-    while(didChange) didChange = Ember.run.sync() ;
-
-    equal("change", get(first, "output"), "first.output") ;
-    equal("change", get(second, "input"), "second.input") ;
-    equal("change", get(second, "output"), "second.output") ;
-    equal("change", get(third,"input"), "third.input") ;
   });
+
+  equal("change", get(first, "output"), "first.output") ;
+  equal("change", get(second, "input"), "second.input") ;
+  equal("change", get(second, "output"), "second.output") ;
+  equal("change", get(third,"input"), "third.input") ;
 });
 
 // ..........................................................
@@ -245,7 +233,7 @@ test("two bindings to the same value should sync in the order they are initializ
     foo: "bar"
   });
 
-  var b = Ember.Object.create({
+  var b = Ember.Object.createWithMixins({
     foo: "baz",
     fooBinding: "a.foo",
 
@@ -282,7 +270,7 @@ module("propertyNameBinding with longhand", {
         value: "originalValue"
       });
 
-      TestNamespace.toObject = Ember.Object.create({
+      TestNamespace.toObject = Ember.Object.createWithMixins({
           valueBinding: Ember.Binding.from('TestNamespace.fromObject.value'),
           localValue: "originalLocal",
           relativeBinding: Ember.Binding.from('localValue')

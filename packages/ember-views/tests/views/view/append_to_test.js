@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:   Ember Views
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 var set = Ember.set, get = Ember.get;
 
 var View, view, willDestroyCalled, childView;
@@ -20,7 +14,7 @@ module("Ember.View - append() and appendTo()", {
   }
 });
 
-test("should be added to the specified element when calling append()", function() {
+test("should be added to the specified element when calling appendTo()", function() {
   Ember.$("#qunit-fixture").html('<div id="menu"></div>');
 
   view = View.create();
@@ -35,7 +29,7 @@ test("should be added to the specified element when calling append()", function(
   ok(viewElem.length > 0, "creates and appends the view's element");
 });
 
-test("should be added to the document body when calling appendTo()", function() {
+test("should be added to the document body when calling append()", function() {
   view = View.create({
     render: function(buffer) {
       buffer.push("foo bar baz");
@@ -106,7 +100,7 @@ test("remove removes an element from the DOM", function() {
   });
 
   ok(Ember.$("#" + get(view, 'elementId')).length === 0, "remove removes an element from the DOM");
-  ok(Ember.View.views[get(view, 'elementId')] === view, "remove does not remove the view from the view hash");
+  ok(Ember.View.views[get(view, 'elementId')] === undefined, "remove does not remove the view from the view hash");
   ok(!get(view, 'element'), "remove nulls out the element");
   equal(willDestroyCalled, 1, "the willDestroyElement hook was called once");
 });
@@ -224,7 +218,7 @@ test("remove removes child elements from the DOM", function() {
   });
 
   ok(Ember.$("#" + get(childView, 'elementId')).length === 0, "remove removes child elements the DOM");
-  ok(Ember.View.views[get(childView, 'elementId')] === childView, "remove does not remove child views from the view hash");
+  ok(Ember.View.views[get(childView, 'elementId')] === undefined, "remove does not remove child views from the view hash");
   ok(!get(childView, 'element'), "remove nulls out child elements");
   equal(willDestroyCalled, 1, "the willDestroyElement hook was called once");
 });

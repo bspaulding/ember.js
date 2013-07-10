@@ -1,11 +1,12 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
+/**
+Ember Runtime
 
-require('ember-runtime/license');
+@module ember
+@submodule ember-runtime
+@requires ember-metal
+*/
 
+require('container');
 require('ember-metal');
 require('ember-runtime/core');
 require('ember-runtime/ext');

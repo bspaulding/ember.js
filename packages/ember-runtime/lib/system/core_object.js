@@ -1,19 +1,18 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
+require('ember-runtime/system/namespace');
+
+/**
+@module ember
+@submodule ember-runtime
+*/
 
 
-
-// NOTE: this object should never be included directly.  Instead use Ember.
-// Ember.Object.  We only define this separately so that Ember.Set can depend on it
+// NOTE: this object should never be included directly. Instead use Ember.
+// Ember.Object. We only define this separately so that Ember.Set can depend on it
 
 
 var set = Ember.set, get = Ember.get,
     o_create = Ember.create,
     o_defineProperty = Ember.platform.defineProperty,
-    a_slice = Array.prototype.slice,
     GUID_KEY = Ember.GUID_KEY,
     guidFor = Ember.guidFor,
     generateGuid = Ember.generateGuid,
@@ -26,7 +25,8 @@ var set = Ember.set, get = Ember.get,
     applyMixin = Mixin._apply,
     finishPartial = Mixin.finishPartial,
     reopen = Mixin.prototype.reopen,
-    classToString = Mixin.prototype.toString;
+    MANDATORY_SETTER = Ember.ENV.MANDATORY_SETTER,
+    indexOf = Ember.EnumerableUtils.indexOf;
 
 var undefinedDescriptor = {
   configurable: true,
@@ -35,14 +35,13 @@ var undefinedDescriptor = {
   value: undefined
 };
 
-/** @private */
 function makeCtor() {
 
   // Note: avoid accessing any properties on the object since it makes the
-  // method a lot faster.  This is glue code so we want it to be as fast as
+  // method a lot faster. This is glue code so we want it to be as fast as
   // possible.
 
-  var wasApplied = false, initMixins;
+  var wasApplied = false, initMixins, initProperties;
 
   var Class = function() {
     if (!wasApplied) {
@@ -53,8 +52,71 @@ function makeCtor() {
     var m = meta(this);
     m.proto = this;
     if (initMixins) {
-      this.reopen.apply(this, initMixins);
+      // capture locally so we can clear the closed over variable
+      var mixins = initMixins;
       initMixins = null;
+      this.reopen.apply(this, mixins);
+    }
+    if (initProperties) {
+      // capture locally so we can clear the closed over variable
+      var props = initProperties;
+      initProperties = null;
+
+      var concatenatedProperties = this.concatenatedProperties;
+
+      for (var i = 0, l = props.length; i < l; i++) {
+        var properties = props[i];
+
+        Ember.assert("Ember.Object.create no longer supports mixing in other definitions, use createWithMixins instead.", !(properties instanceof Ember.Mixin));
+
+        for (var keyName in properties) {
+          if (!properties.hasOwnProperty(keyName)) { continue; }
+
+          var value = properties[keyName],
+              IS_BINDING = Ember.IS_BINDING;
+
+          if (IS_BINDING.test(keyName)) {
+            var bindings = m.bindings;
+            if (!bindings) {
+              bindings = m.bindings = {};
+            } else if (!m.hasOwnProperty('bindings')) {
+              bindings = m.bindings = o_create(m.bindings);
+            }
+            bindings[keyName] = value;
+          }
+
+          var desc = m.descs[keyName];
+
+          Ember.assert("Ember.Object.create no longer supports defining computed properties.", !(value instanceof Ember.ComputedProperty));
+          Ember.assert("Ember.Object.create no longer supports defining methods that call _super.", !(typeof value === 'function' && value.toString().indexOf('._super') !== -1));
+
+          if (concatenatedProperties && indexOf(concatenatedProperties, keyName) >= 0) {
+            var baseValue = this[keyName];
+
+            if (baseValue) {
+              if ('function' === typeof baseValue.concat) {
+                value = baseValue.concat(value);
+              } else {
+                value = Ember.makeArray(baseValue).concat(value);
+              }
+            } else {
+              value = Ember.makeArray(value);
+            }
+          }
+
+          if (desc) {
+            desc.set(this, keyName, value);
+          } else {
+            if (typeof this.setUnknownProperty === 'function' && !(keyName in this)) {
+              this.setUnknownProperty(keyName, value);
+            } else if (MANDATORY_SETTER) {
+              Ember.defineProperty(this, keyName, null, value); // setup mandatory setter
+            } else {
+              this[keyName] = value;
+            }
+          }
+        }
+      }
     }
     finishPartial(this, m);
     delete m.proto;
@@ -62,7 +124,7 @@ function makeCtor() {
     this.init.apply(this, arguments);
   };
 
-  Class.toString = classToString;
+  Class.toString = Mixin.prototype.toString;
   Class.willReopen = function() {
     if (wasApplied) {
       Class.PrototypeMixin = Mixin.create(Class.PrototypeMixin);
@@ -71,6 +133,7 @@ function makeCtor() {
     wasApplied = false;
   };
   Class._initMixins = function(args) { initMixins = args; };
+  Class._initProperties = function(args) { initProperties = args; };
 
   Class.proto = function() {
     var superclass = Class.superclass;
@@ -90,10 +153,9 @@ function makeCtor() {
 }
 
 var CoreObject = makeCtor();
+CoreObject.toString = function() { return "Ember.CoreObject"; };
 
-CoreObject.PrototypeMixin = Mixin.create(
-/** @scope Ember.CoreObject.prototype */ {
-
+CoreObject.PrototypeMixin = Mixin.create({
   reopen: function() {
     applyMixin(this, arguments, true);
     return this;
@@ -101,48 +163,163 @@ CoreObject.PrototypeMixin = Mixin.create(
 
   isInstance: true,
 
-  /** @private */
+  /**
+    An overridable method called when objects are instantiated. By default,
+    does nothing unless it is overridden during class definition.
+
+    Example:
+
+    ```javascript
+    App.Person = Ember.Object.extend({
+      init: function() {
+        this._super();
+        alert('Name is ' + this.get('name'));
+      }
+    });
+
+    var steve = App.Person.create({
+      name: "Steve"
+    });
+
+    // alerts 'Name is Steve'.
+    ```
+
+    NOTE: If you do override `init` for a framework class like `Ember.View` or
+    `Ember.ArrayController`, be sure to call `this._super()` in your
+    `init` declaration! If you don't, Ember may not have an opportunity to
+    do important setup work, and you'll see strange behavior in your
+    application.
+
+    @method init
+  */
   init: function() {},
 
-  /** @field */
+  /**
+    Defines the properties that will be concatenated from the superclass
+    (instead of overridden).
+
+    By default, when you extend an Ember class a property defined in
+    the subclass overrides a property with the same name that is defined
+    in the superclass. However, there are some cases where it is preferable
+    to build up a property's value by combining the superclass' property
+    value with the subclass' value. An example of this in use within Ember
+    is the `classNames` property of `Ember.View`.
+
+    Here is some sample code showing the difference between a concatenated
+    property and a normal one:
+
+    ```javascript
+    App.BarView = Ember.View.extend({
+      someNonConcatenatedProperty: ['bar'],
+      classNames: ['bar']
+    });
+
+    App.FooBarView = App.BarView.extend({
+      someNonConcatenatedProperty: ['foo'],
+      classNames: ['foo'],
+    });
+
+    var fooBarView = App.FooBarView.create();
+    fooBarView.get('someNonConcatenatedProperty'); // ['foo']
+    fooBarView.get('classNames'); // ['ember-view', 'bar', 'foo']
+    ```
+
+    This behavior extends to object creation as well. Continuing the
+    above example:
+
+    ```javascript
+    var view = App.FooBarView.create({
+      someNonConcatenatedProperty: ['baz'],
+      classNames: ['baz']
+    })
+    view.get('someNonConcatenatedProperty'); // ['baz']
+    view.get('classNames'); // ['ember-view', 'bar', 'foo', 'baz']
+    ```
+    Adding a single property that is not an array will just add it in the array:
+
+    ```javascript
+    var view = App.FooBarView.create({
+      classNames: 'baz'
+    })
+    view.get('classNames'); // ['ember-view', 'bar', 'foo', 'baz']
+    ```
+
+    Using the `concatenatedProperties` property, we can tell to Ember that mix
+    the content of the properties.
+
+    In `Ember.View` the `classNameBindings` and `attributeBindings` properties
+    are also concatenated, in addition to `classNames`.
+
+    This feature is available for you to use throughout the Ember object model,
+    although typical app developers are likely to use it infrequently.
+
+    @property concatenatedProperties
+    @type Array
+    @default null
+  */
+  concatenatedProperties: null,
+
+  /**
+    Destroyed object property flag.
+
+    if this property is `true` the observers and bindings were already
+    removed by the effect of calling the `destroy()` method.
+
+    @property isDestroyed
+    @default false
+  */
   isDestroyed: false,
 
-  /** @field */
+  /**
+    Destruction scheduled flag. The `destroy()` method has been called.
+
+    The object stays intact until the end of the run loop at which point
+    the `isDestroyed` flag is set.
+
+    @property isDestroying
+    @default false
+  */
   isDestroying: false,
 
   /**
-    Destroys an object by setting the isDestroyed flag and removing its
+    Destroys an object by setting the `isDestroyed` flag and removing its
     metadata, which effectively destroys observers and bindings.
 
     If you try to set a property on a destroyed object, an exception will be
     raised.
 
     Note that destruction is scheduled for the end of the run loop and does not
-    happen immediately.
+    happen immediately.  It will set an isDestroying flag immediately.
 
-    @returns {Ember.Object} receiver
+    @method destroy
+    @return {Ember.Object} receiver
   */
   destroy: function() {
     if (this.isDestroying) { return; }
-
     this.isDestroying = true;
 
-    if (this.willDestroy) { this.willDestroy(); }
-
-    set(this, 'isDestroyed', true);
+    schedule('actions', this, this.willDestroy);
     schedule('destroy', this, this._scheduledDestroy);
     return this;
   },
 
   /**
+    Override to implement teardown.
+   */
+  willDestroy: Ember.K,
+
+  /**
+    @private
+
     Invoked by the run loop to actually destroy the object. This is
     scheduled for execution by the `destroy` method.
 
-    @private
+    @method _scheduledDestroy
   */
   _scheduledDestroy: function() {
+    if (this.isDestroyed) { return; }
     destroy(this);
-    if (this.didDestroy) { this.didDestroy(); }
+    this.isDestroyed = true;
   },
 
   bind: function(to, from) {
@@ -151,10 +328,50 @@ CoreObject.PrototypeMixin = Mixin.create(
     return from;
   },
 
-  toString: function() {
-    return '<'+this.constructor.toString()+':'+guidFor(this)+'>';
+  /**
+    Returns a string representation which attempts to provide more information
+    than Javascript's `toString` typically does, in a generic way for all Ember
+    objects.
+
+        App.Person = Em.Object.extend()
+        person = App.Person.create()
+        person.toString() //=> "<App.Person:ember1024>"
+
+    If the object's class is not defined on an Ember namespace, it will
+    indicate it is a subclass of the registered superclass:
+
+        Student = App.Person.extend()
+        student = Student.create()
+        student.toString() //=> "<(subclass of App.Person):ember1025>"
+
+    If the method `toStringExtension` is defined, its return value will be
+    included in the output.
+
+        App.Teacher = App.Person.extend({
+          toStringExtension: function(){
+            return this.get('fullName');
+          }
+        });
+        teacher = App.Teacher.create()
+        teacher.toString(); //=> "<App.Teacher:ember1026:Tom Dale>"
+
+    @method toString
+    @return {String} string representation
+  */
+  toString: function toString() {
+    var hasToStringExtension = typeof this.toStringExtension === 'function',
+        extension = hasToStringExtension ? ":" + this.toStringExtension() : '';
+    var ret = '<'+this.constructor.toString()+':'+guidFor(this)+extension+'>';
+    this.toString = makeToString(ret);
+    return ret;
   }
 });
+
+CoreObject.PrototypeMixin.ownerConstructor = CoreObject;
+
+function makeToString(ret) {
+  return function() { return ret; };
+}
 
 if (Ember.config.overridePrototypeMixin) {
   Ember.config.overridePrototypeMixin(CoreObject.PrototypeMixin);
@@ -162,8 +379,7 @@ if (Ember.config.overridePrototypeMixin) {
 
 CoreObject.__super__ = null;
 
-var ClassMixin = Mixin.create(
-/** @scope Ember.ClassMixin.prototype */ {
+var ClassMixin = Mixin.create({
 
   ClassMixin: Ember.required(),
 
@@ -195,9 +411,15 @@ var ClassMixin = Mixin.create(
     return Class;
   },
 
-  create: function() {
+  createWithMixins: function() {
     var C = this;
     if (arguments.length>0) { this._initMixins(arguments); }
+    return new C();
+  },
+
+  create: function() {
+    var C = this;
+    if (arguments.length>0) { this._initProperties(arguments); }
     return new C();
   },
 
@@ -228,23 +450,30 @@ var ClassMixin = Mixin.create(
 
   /**
     In some cases, you may want to annotate computed properties with additional
-    metadata about how they function or what values they operate on. For example,
-    computed property functions may close over variables that are then no longer
-    available for introspection.
+    metadata about how they function or what values they operate on. For
+    example, computed property functions may close over variables that are then
+    no longer available for introspection.
 
     You can pass a hash of these values to a computed property like this:
 
-        person: function() {
-          var personId = this.get('personId');
-          return App.Person.create({ id: personId });
-        }.property().meta({ type: App.Person })
+    ```javascript
+    person: function() {
+      var personId = this.get('personId');
+      return App.Person.create({ id: personId });
+    }.property().meta({ type: App.Person })
+    ```
 
     Once you've done this, you can retrieve the values saved to the computed
     property from your class like this:
 
-        MyClass.metaForProperty('person');
+    ```javascript
+    MyClass.metaForProperty('person');
+    ```
 
     This will return the original hash that was passed to `meta()`.
+
+    @method metaForProperty
+    @param key {String} property name
   */
   metaForProperty: function(key) {
     var desc = meta(this.proto(), false).descs[key];
@@ -256,6 +485,10 @@ var ClassMixin = Mixin.create(
   /**
     Iterate over each computed property for the class, passing its name
     and any associated metadata (see `metaForProperty`) to the callback.
+
+    @method eachComputedProperty
+    @param {Function} callback
+    @param {Object} binding
   */
   eachComputedProperty: function(callback, binding) {
     var proto = this.proto(),
@@ -274,6 +507,8 @@ var ClassMixin = Mixin.create(
 
 });
 
+ClassMixin.ownerConstructor = CoreObject;
+
 if (Ember.config.overrideClassMixin) {
   Ember.config.overrideClassMixin(ClassMixin);
 }
@@ -282,9 +517,7 @@ CoreObject.ClassMixin = ClassMixin;
 ClassMixin.apply(CoreObject);
 
 /**
-  @class
+  @class CoreObject
+  @namespace Ember
 */
 Ember.CoreObject = CoreObject;
-
-
-

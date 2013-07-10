@@ -1,17 +1,18 @@
-// ==========================================================================
-// Project:   Ember - JavaScript Application Framework
-// Copyright: ©2006-2011 Apple Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 var set = Ember.set, get = Ember.get;
 
-var parentView, child, parentDom, childDom ;
+var parentView, child, parentDom, childDom, view;
 
-module("Ember.View#element");
+module("Ember.View#element", {
+  teardown: function() {
+    Ember.run(function() {
+      if (parentView) { parentView.destroy(); }
+      view.destroy();
+    });
+  }
+});
 
 test("returns null if the view has no element and no parent view", function() {
-  var view = Ember.View.create() ;
+  view = Ember.View.create() ;
   equal(get(view, 'parentView'), null, 'precond - has no parentView');
   equal(get(view, 'element'), null, 'has no element');
 });
@@ -20,7 +21,7 @@ test("returns null if the view has no element and parent view has no element", f
   parentView = Ember.ContainerView.create({
     childViews: [ Ember.View.extend() ]
   });
-  var view = get(parentView, 'childViews').objectAt(0);
+  view = get(parentView, 'childViews').objectAt(0);
 
   equal(get(view, 'parentView'), parentView, 'precond - has parent view');
   equal(get(parentView, 'element'), null, 'parentView has no element');
@@ -28,7 +29,7 @@ test("returns null if the view has no element and parent view has no element", f
 });
 
 test("returns element if you set the value", function() {
-  var view = Ember.View.create();
+  view = Ember.View.create();
   equal(get(view, 'element'), null, 'precond- has no element');
 
   var dom = document.createElement('div');
@@ -40,7 +41,6 @@ test("returns element if you set the value", function() {
 
 module("Ember.View#element - autodiscovery", {
   setup: function() {
-
     parentView = Ember.ContainerView.create({
       childViews: [ Ember.View.extend({
         elementId: 'child-view'
@@ -57,6 +57,10 @@ module("Ember.View#element - autodiscovery", {
   },
 
   teardown: function() {
+    Ember.run(function() {
+      parentView.destroy();
+      if (view) { view.destroy(); }
+    });
     parentView = child = parentDom = childDom = null ;
   }
 });
@@ -68,14 +72,18 @@ test("discovers element if has no element but parent view does have element", fu
   equal(child.$().attr('id'), 'child-view', 'view discovered child');
 });
 
-test("should not allow the elementId to be changed", function() {
-  var view = Ember.View.create({
+test("should not allow the elementId to be changed after inserted", function() {
+  view = Ember.View.create({
     elementId: 'one'
+  });
+
+  Ember.run(function() {
+    view.appendTo('#qunit-fixture');
   });
 
   raises(function() {
     view.set('elementId', 'two');
-  }, /Changing a view's elementId after creation is not allowed./, "raises elementId changed exception");
+  }, "raises elementId changed exception");
 
   equal(view.get('elementId'), 'one', 'elementId is still "one"');
 });

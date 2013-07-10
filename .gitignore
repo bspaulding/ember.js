@@ -17,7 +17,8 @@ assets/bpm_styles.css
 bin/
 coverage
 dist
-docs
+docs/build
+docs/node_modules
 lib/*/tests/all.js
 lib/*/tests/qunit*
 lib/bundler/man
@@ -34,3 +35,7 @@ tmp*.gem
 tmp.bpm
 tmp.spade
 tests/source
+node_modules
+.vagrant
+bundle/
+*~

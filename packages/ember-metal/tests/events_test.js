@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 module('system/props/events_test');
 
 test('listener should receive event - removing should remove', function() {
@@ -97,7 +91,7 @@ test('suspending a listener should not invoke during callback', function() {
   }
 
   Ember.sendEvent(obj, 'event!');
-  
+
   equal(Ember._suspendListener(obj, 'event!', target, target.method, callback), 'result');
 
   Ember.sendEvent(obj, 'event!');
@@ -172,3 +166,48 @@ test('hasListeners tells you if there are listeners for a given event', function
   equal(Ember.hasListeners(obj, 'event!'), true, 'has listeners');
 });
 
+test('calling removeListener without method should remove all listeners', function() {
+  var obj = {}, F = function() {}, F2 = function() {};
+
+  equal(Ember.hasListeners(obj, 'event!'), false, 'no listeners at first');
+
+  Ember.addListener(obj, 'event!', F);
+  Ember.addListener(obj, 'event!', F2);
+
+  equal(Ember.hasListeners(obj, 'event!'), true, 'has listeners');
+
+  Ember.removeListener(obj, 'event!');
+
+  equal(Ember.hasListeners(obj, 'event!'), false, 'has no more listeners');
+});
+
+test('while suspended, it should not be possible to add a duplicate listener', function() {
+  var obj = {}, target;
+
+  target = {
+    count: 0,
+    method: function() { this.count++; }
+  };
+
+  Ember.addListener(obj, 'event!', target, target.method);
+
+  function callback() {
+    Ember.addListener(obj, 'event!', target, target.method);
+  }
+
+  Ember.sendEvent(obj, 'event!');
+
+  Ember._suspendListener(obj, 'event!', target, target.method, callback);
+
+  equal(target.count, 1, 'should invoke');
+  equal(Ember.meta(obj).listeners['event!'].length, 1, "a duplicate listener wasn't added");
+
+  // now test _suspendListeners...
+
+  Ember.sendEvent(obj, 'event!');
+
+  Ember._suspendListeners(obj, ['event!'], target, target.method, callback);
+
+  equal(target.count, 2, 'should have invoked again');
+  equal(Ember.meta(obj).listeners['event!'].length, 1, "a duplicate listener wasn't added");
+});

@@ -1,17 +1,18 @@
-// ==========================================================================
-// Project:   Ember Views
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
+var set = Ember.set, get = Ember.get, view;
 
-var set = Ember.set, get = Ember.get;
-
-module("Ember.View - Class Name Bindings");
+module("Ember.View - Class Name Bindings", {
+  teardown: function() {
+    Ember.run(function() {
+      view.destroy();
+    });
+  }
+});
 
 test("should apply bound class names to the element", function() {
-  var view = Ember.View.create({
+  view = Ember.View.create({
     classNameBindings: ['priority', 'isUrgent', 'isClassified:classified',
-                        'canIgnore', 'messages.count', 'messages.resent:is-resent', 'isNumber:is-number',
+                        'canIgnore', 'messages.count', 'messages.resent:is-resent',
+                        'isNumber:is-number', 'isFalsy::is-falsy', 'isTruthy::is-not-truthy',
                         'isEnabled:enabled:disabled'],
 
     priority: 'high',
@@ -19,6 +20,8 @@ test("should apply bound class names to the element", function() {
     isClassified: true,
     canIgnore: false,
     isNumber: 5,
+    isFalsy: 0,
+    isTruthy: 'abc',
     isEnabled: true,
 
     messages: {
@@ -30,20 +33,23 @@ test("should apply bound class names to the element", function() {
   Ember.run(function(){
     view.createElement();
   });
-  
+
   ok(view.$().hasClass('high'), "adds string values as class name");
   ok(view.$().hasClass('is-urgent'), "adds true Boolean values by dasherizing");
   ok(view.$().hasClass('classified'), "supports customizing class name for Boolean values");
   ok(view.$().hasClass('five-messages'), "supports paths in bindings");
   ok(view.$().hasClass('is-resent'), "supports customing class name for paths");
   ok(view.$().hasClass('is-number'), "supports colon syntax with truthy properties");
+  ok(view.$().hasClass('is-falsy'), "supports colon syntax with falsy properties");
+  ok(!view.$().hasClass('abc'), "does not add values as classes when falsy classes have been specified");
+  ok(!view.$().hasClass('is-not-truthy'), "does not add falsy classes when values are truthy");
   ok(!view.$().hasClass('can-ignore'), "does not add false Boolean values as class");
   ok(view.$().hasClass('enabled'), "supports customizing class name for Boolean values with negation");
   ok(!view.$().hasClass('disabled'), "does not add class name for negated binding");
 });
 
 test("should add, remove, or change class names if changed after element is created", function() {
-  var view = Ember.View.create({
+  view = Ember.View.create({
     classNameBindings: ['priority', 'isUrgent', 'isClassified:classified',
                         'canIgnore', 'messages.count', 'messages.resent:is-resent',
                         'isEnabled:enabled:disabled'],
@@ -86,7 +92,7 @@ test("should add, remove, or change class names if changed after element is crea
 });
 
 test(":: class name syntax works with an empty true class", function() {
-  var view = Ember.View.create({
+  view = Ember.View.create({
     isEnabled: false,
     classNameBindings: ['isEnabled::not-enabled']
   });
@@ -101,15 +107,13 @@ test(":: class name syntax works with an empty true class", function() {
 });
 
 test("classNames should not be duplicated on rerender", function(){
-  var view;
-  
   Ember.run(function(){
     view = Ember.View.create({
       classNameBindings: ['priority'],
       priority: 'high'
     });
   });
-  
+
 
   Ember.run(function(){
     view.createElement();
@@ -124,8 +128,37 @@ test("classNames should not be duplicated on rerender", function(){
   equal(view.$().attr('class'), 'ember-view high');
 });
 
+test("classNameBindings should work when the binding property is updated and the view has been removed of the DOM", function(){
+  Ember.run(function(){
+    view = Ember.View.create({
+      classNameBindings: ['priority'],
+      priority: 'high'
+    });
+  });
+
+
+  Ember.run(function(){
+    view.createElement();
+  });
+
+  equal(view.$().attr('class'), 'ember-view high');
+
+  Ember.run(function(){
+    view.remove();
+  });
+
+  view.set('priority', 'low');
+
+  Ember.run(function() {
+    view.append();
+  });
+
+  equal(view.$().attr('class'), 'ember-view low');
+
+});
+
 test("classNames removed by a classNameBindings observer should not re-appear on rerender", function(){
-  var view = Ember.View.create({
+  view = Ember.View.create({
     classNameBindings: ['isUrgent'],
     isUrgent: true
   });
@@ -147,4 +180,77 @@ test("classNames removed by a classNameBindings observer should not re-appear on
   });
 
   equal(view.$().attr('class'), 'ember-view');
+});
+
+test("classNameBindings lifecycle test", function(){
+  Ember.run(function(){
+    view = Ember.View.create({
+      classNameBindings: ['priority'],
+      priority: 'high'
+    });
+  });
+
+  equal(Ember.isWatching(view, 'priority'), false);
+
+  Ember.run(function(){
+    view.createElement();
+  });
+
+  equal(view.$().attr('class'), 'ember-view high');
+  equal(Ember.isWatching(view, 'priority'), true);
+
+  Ember.run(function(){
+    view.remove();
+    view.set('priority', 'low');
+  });
+
+  equal(Ember.isWatching(view, 'priority'), false);
+});
+
+test("classNameBindings should not fail if view has been removed", function(){
+  Ember.run(function(){
+    view = Ember.View.create({
+      classNameBindings: ['priority'],
+      priority: 'high'
+    });
+  });
+  Ember.run(function(){
+    view.createElement();
+  });
+  var error;
+  try {
+    Ember.run(function(){
+      Ember.changeProperties(function(){
+        view.set('priority', 'low');
+        view.remove();
+      });
+    });
+  } catch(e) {
+    error = e;
+  }
+  ok(!error, error);
+});
+
+test("classNameBindings should not fail if view has been destroyed", function(){
+  Ember.run(function(){
+    view = Ember.View.create({
+      classNameBindings: ['priority'],
+      priority: 'high'
+    });
+  });
+  Ember.run(function(){
+    view.createElement();
+  });
+  var error;
+  try {
+    Ember.run(function(){
+      Ember.changeProperties(function(){
+        view.set('priority', 'low');
+        view.destroy();
+      });
+    });
+  } catch(e) {
+    error = e;
+  }
+  ok(!error, error);
 });

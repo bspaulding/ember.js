@@ -1,48 +1,45 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            Portions ©2008-2010 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
-
 require('ember-runtime/system/string');
+
+/**
+@module ember
+@submodule ember-runtime
+*/
 
 
 
 var get = Ember.get, set = Ember.set;
 
 /**
-  @namespace
-
-  Implements some standard methods for copying an object.  Add this mixin to
-  any object you create that can create a copy of itself.  This mixin is
+  Implements some standard methods for copying an object. Add this mixin to
+  any object you create that can create a copy of itself. This mixin is
   added automatically to the built-in array.
 
-  You should generally implement the copy() method to return a copy of the
+  You should generally implement the `copy()` method to return a copy of the
   receiver.
 
-  Note that frozenCopy() will only work if you also implement Ember.Freezable.
+  Note that `frozenCopy()` will only work if you also implement
+  `Ember.Freezable`.
 
+  @class Copyable
+  @namespace Ember
   @extends Ember.Mixin
   @since Ember 0.9
 */
-Ember.Copyable = Ember.Mixin.create(
-/** @scope Ember.Copyable.prototype */ {
+Ember.Copyable = Ember.Mixin.create(/** @scope Ember.Copyable.prototype */ {
 
   /**
-    Override to return a copy of the receiver.  Default implementation raises
+    Override to return a copy of the receiver. Default implementation raises
     an exception.
 
-    @function
-    @param deep {Boolean} if true, a deep copy of the object should be made
-    @returns {Object} copy of receiver
+    @method copy
+    @param {Boolean} deep if `true`, a deep copy of the object should be made
+    @return {Object} copy of receiver
   */
   copy: Ember.required(Function),
 
   /**
-    If the object implements Ember.Freezable, then this will return a new copy
-    if the object is not frozen and the receiver if the object is frozen.
+    If the object implements `Ember.Freezable`, then this will return a new
+    copy if the object is not frozen and the receiver if the object is frozen.
 
     Raises an exception if you try to call this method on a object that does
     not support freezing.
@@ -51,7 +48,8 @@ Ember.Copyable = Ember.Mixin.create(
     since a freezable object can simply return itself without actually
     consuming more memory.
 
-    @returns {Object} copy of receiver or receiver
+    @method frozenCopy
+    @return {Object} copy of receiver or receiver
   */
   frozenCopy: function() {
     if (Ember.Freezable && Ember.Freezable.detect(this)) {
@@ -61,6 +59,3 @@ Ember.Copyable = Ember.Mixin.create(
     }
   }
 });
-
-
-

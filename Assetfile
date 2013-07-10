@@ -1,169 +1,79 @@
-require "rake-pipeline-web-filters"
-require "json"
-require "uglifier"
-require "execjs"
-
-class EmberProductionFilter < Rake::Pipeline::Filter
-
-  def js_context
-    # We're using Ember to build Ember! Inception!
-    unless @context
-      headless = File.read("lib/headless-ember.js")
-      ember    = File.read("lib/ember.js")
-      @context = ExecJS.compile([headless, ember].join("\n"))
-    end
-    @context
-  end
-
-  def strip_debug(data)
-    # Strip debug code
-    data.gsub!(%r{^(\s)*Ember\.(assert|deprecate|warn)\((.*)\).*$}, "")
-  end
-
-  def precompile_templates(data)
-    # Precompile defaultTemplates
-    data.gsub!(%r{(defaultTemplate(?:\s*=|:)\s*)Ember\.Handlebars\.compile\(['"](.*)['"]\)}) do
-      "#{$1}Ember.Handlebars.template(#{js_context.call("precompileEmberHandlebars", $2)})"
-    end
-  end
-
-  def generate_output(inputs, output)
-    inputs.each do |input|
-      result = File.read(input.fullpath)
-      strip_debug(result)
-      precompile_templates(result)
-      output.write result
-    end
-  end
-end
-
-class EmberLicenseFilter < Rake::Pipeline::Filter
-  def license
-    @license ||= File.read("generators/license.js")
-  end
-
-  def generate_output(inputs, output)
-    inputs.each do |input|
-      file = File.read(input.fullpath)
-      output.write "#{license}\n\n#{file}"
-    end
-  end
-end
-
-class JSHintRC < Rake::Pipeline::Filter
-  def jshintrc
-    @jshintrc ||= File.read(".jshintrc")
-  end
-
-  def generate_output(inputs, output)
-    inputs.each do |input|
-      file = File.read(input.fullpath)
-      output.write "var JSHINTRC = #{jshintrc};\n\n#{file}"
-    end
-  end
-end
-
-class VersionInfo < Rake::Pipeline::Filter
-  def version_info
-    @version_info ||= begin
-      latest_tag = `git describe --tags`
-      last_commit = `git log -n 1 --format="%h (%ci)"`
-
-      out = "// Version: #{latest_tag}"
-      out << "// Last commit: #{last_commit}"
-      out
-    end
-  end
-
-  def generate_output(inputs, output)
-    inputs.each do |input|
-      file = File.read(input.fullpath)
-      output.write "#{version_info}\n\n#{file}"
-    end
-  end
-end
+require 'ember-dev'
 
 distros = {
-  :runtime => %w(ember-metal ember-runtime),
-  :full    => %w(ember-metal ember-runtime ember-application ember-views ember-states ember-routing ember-viewstates metamorph ember-handlebars)
+  "runtime"           => %w(ember-metal rsvp container ember-runtime),
+  "template-compiler" => %w(ember-handlebars-compiler),
+  "data-deps"         => %w(ember-metal rsvp container ember-runtime ember-states),
+  "full"              => %w(ember-metal rsvp container ember-runtime ember-views metamorph handlebars ember-handlebars-compiler ember-handlebars ember-routing ember-application ember-states),
+  "old-router"        => %w(ember-metal rsvp container ember-runtime ember-views ember-states ember-viewstates metamorph handlebars ember-handlebars-compiler ember-handlebars ember-old-router)
 }
 
-output "dist"
+class AddMicroLoader < Rake::Pipeline::Filter
+  LOADER = File.expand_path("packages/loader/lib/main.js")
 
-input "packages" do
-  output "tests"
-
-  match "*/tests/**/*.js" do
-    minispade :rewrite_requires => true, :string => true, :module_id_generator => proc { |input|
-      id = input.path.dup
-      id.sub!(/\.js$/, '')
-      id.sub!(/\/main$/, '')
-      id.sub!('/tests', '/~tests')
-      id
-    }
-
-    concat "ember-tests.js"
+  def initialize(options={}, &block)
+    super(&block)
+    @global = options[:global]
   end
 
-  match "ember-tests.js" do
-    filter JSHintRC
-  end
-end
+  def generate_output(inputs, output)
+    output.write "(function() {\n" unless @global
 
-input "packages" do
-  match "*/lib/**/*.js" do
-    minispade :rewrite_requires => true, :string => true, :module_id_generator => proc { |input|
-      id = input.path.dup
-      id.sub!('/lib/', '/')
-      id.sub!(/\.js$/, '')
-      id.sub!(/\/main$/, '')
-      id
-    }
+    output.write File.read(LOADER)
 
-    concat "ember-spade.js"
-  end
-end
-
-input "packages" do
-  match "*/lib/**/main.js" do
-    neuter(
-      :additional_dependencies => proc { |input|
-        Dir.glob(File.join(File.dirname(input.fullpath),'**','*.js'))
-      },
-      :path_transform => proc { |path, input|
-        package, path = path.split('/', 2)
-        current_package = input.path.split('/', 2)[0]
-        current_package == package && path ? File.join(package, "lib", "#{path}.js") : nil
-      },
-      :closure_wrap => true
-    ) do |filename|
-      File.join("modules/", filename.gsub('/lib/main.js', '.js'))
+    inputs.each do |input|
+      output.write input.read
     end
+
+    output.write "\n})();\n" unless @global
+  end
+
+  def additional_dependencies(input)
+    [ LOADER ]
   end
 end
+
+#MEGAHAX
+ember_spade_postprocess = "filter AddMicroLoader, :global => true"
+
+instance_eval File.read(EmberDev.support_path.join('Assetfile'))
 
 distros.each do |name, modules|
-  name = name == :full ? "ember" : "ember-#{name}"
+  name = name == "full" ? "ember" : "ember-#{name}"
 
   input "dist/modules" do
+
+    # Add ember-testing to ember distro
+    if name == "ember"
+      match "{ember-testing.js}" do
+        concat ["ember-testing.js"], "#{name}.js"
+      end
+    end
+
     module_paths = modules.map{|m| "#{m}.js" }
     match "{#{module_paths.join(',')}}" do
       concat(module_paths){ ["#{name}.js", "#{name}.prod.js"] }
     end
 
+    match "{#{name}.js,#{name}.prod.js}" do
+      filter HandlebarsPrecompiler
+      filter AddMicroLoader unless name == "ember-template-compiler"
+    end
+
     # Add debug to the main distro
     match "{#{name}.js,ember-debug.js}" do
       filter VersionInfo
-      concat ["ember-debug.js"], "#{name}.js"
+      concat ["ember-debug.js"], "#{name}.js" unless name == "ember-template-compiler"
+      filter EmberStub if name == "ember-template-compiler"
     end
 
     # Strip dev code
     match "#{name}.prod.js" do
-      filter(EmberProductionFilter) { ["#{name}.prod.js", "#{name}.min.js"] }
+      filter(EmberStripDebugMessagesFilter) { ["#{name}.prod.js", "min/#{name}.js"] }
     end
 
     # Minify
-    match "#{name}.min.js" do
+    match "min/#{name}.js" do
       uglify{ "#{name}.min.js" }
       filter VersionInfo
       filter EmberLicenseFilter

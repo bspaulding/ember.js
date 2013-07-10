@@ -1,12 +1,59 @@
-// ==========================================================================
-// Project:   Ember Handlebars Views
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals TestObject:true */
 
-var textArea;
-var get = Ember.get, set = Ember.set;
+var textArea, controller;
+var get = Ember.get, set = function(object, key, value) {
+  Ember.run(function() { Ember.set(object, key, value); });
+};
+
+var compile = Ember.Handlebars.compile,
+    forEach = Ember.ArrayPolyfills.forEach;
+
+function append() {
+  Ember.run(function() {
+    textArea.appendTo('#qunit-fixture');
+  });
+}
+
+function destroy(object) {
+  Ember.run(function() {
+    object.destroy();
+  });
+}
+
+module("{{textarea}}", {
+  setup: function() {
+    controller = {
+      val: 'Lorem ipsum dolor'
+    };
+
+    textArea = Ember.View.extend({
+      controller: controller,
+      template: compile('{{textarea disabled=disabled value=val}}')
+    }).create();
+
+    append();
+  },
+
+  teardown: function() {
+    destroy(textArea);
+  }
+});
+
+test("Should insert a textarea", function() {
+  equal(textArea.$('textarea').length, 1, "There is a single textarea");
+});
+
+test("Should become disabled when the controller changes", function() {
+  ok(textArea.$('textarea').is(':not(:disabled)'), "Nothing is disabled yet");
+  set(controller, 'disabled', true);
+  ok(textArea.$('textarea').is(':disabled'), "The disabled attribute is updated");
+});
+
+test("Should bind its contents to the specified value", function() {
+  equal(textArea.$('textarea').val(), "Lorem ipsum dolor", "The contents are included");
+  set(controller, 'val', "sit amet");
+  equal(textArea.$('textarea').val(), "sit amet", "The new contents are included");
+});
 
 module("Ember.TextArea", {
   setup: function() {
@@ -24,12 +71,6 @@ module("Ember.TextArea", {
     TestObject = textArea = null;
   }
 });
-
-function append() {
-  Ember.run(function() {
-    textArea.appendTo('#qunit-fixture');
-  });
-}
 
 test("should become disabled if the disabled attribute is true", function() {
   textArea.set('disabled', true);
@@ -73,6 +114,19 @@ test("input placeholder is updated when setting placeholder property of view", f
   Ember.run(function() { set(textArea, 'placeholder', 'bar'); });
 
   equal(textArea.$().attr('placeholder'), "bar", "updates text area after placeholder changes");
+});
+
+test("input name is updated when setting name property of view", function() {
+  Ember.run(function() {
+    set(textArea, 'name', 'foo');
+    textArea.append();
+  });
+
+  equal(textArea.$().attr('name'), "foo", "renders text area with name");
+
+  Ember.run(function() { set(textArea, 'name', 'bar'); });
+
+  equal(textArea.$().attr('name'), "bar", "updates text area after name changes");
 });
 
 test("input maxlength is updated when setting maxlength property of view", function() {
@@ -130,7 +184,8 @@ test("input tabindex is updated when setting tabindex property of view", functio
 test("value binding works properly for inputs that haven't been created", function() {
 
   Ember.run(function() {
-    textArea = Ember.TextArea.create({
+    textArea.destroy(); // destroy existing textarea
+    textArea = Ember.TextArea.createWithMixins({
       valueBinding: 'TestObject.value'
     });
   });
@@ -148,6 +203,22 @@ test("value binding works properly for inputs that haven't been created", functi
 
   equal(get(textArea, 'value'), 'ohai', "value property remains the same once the view has been appended");
   equal(textArea.$().val(), 'ohai', "value is reflected in the input element once it is created");
+});
+
+forEach.call([ 'cut', 'paste', 'input' ], function(eventName) {
+  test("should update the value on " + eventName + " events", function() {
+
+    Ember.run(function() {
+      textArea.append();
+    });
+
+    textArea.$().val('new value');
+    textArea.trigger(eventName, Ember.Object.create({
+      type: eventName
+    }));
+
+    equal(textArea.get('value'), 'new value', 'value property updates on ' + eventName + ' events');
+  });
 });
 
 test("should call the insertNewline method when return key is pressed", function() {

@@ -1,6 +1,19 @@
-var loadHooks = {};
+var forEach = Ember.ArrayPolyfills.forEach;
+
+/**
+@module ember
+@submodule ember-runtime
+*/
+
+var loadHooks = Ember.ENV.EMBER_LOAD_HOOKS || {};
 var loaded = {};
 
+/**
+@method onLoad
+@for Ember
+@param name {String} name of hook
+@param callback {Function} callback to be called
+*/
 Ember.onLoad = function(name, callback) {
   var object;
 
@@ -12,13 +25,17 @@ Ember.onLoad = function(name, callback) {
   }
 };
 
+/**
+@method runLoadHooks
+@for Ember
+@param name {String} name of hook
+@param object {Object} object to pass to callbacks
+*/
 Ember.runLoadHooks = function(name, object) {
-  var hooks;
-
   loaded[name] = object;
 
-  if (hooks = loadHooks[name]) {
-    loadHooks[name].forEach(function(callback) {
+  if (loadHooks[name]) {
+    forEach.call(loadHooks[name], function(callback) {
       callback(object);
     });
   }

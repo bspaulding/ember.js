@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 module('Ember.Object.extend');
 
 test('Basic extend', function() {
@@ -48,7 +42,7 @@ test('Overriding a method several layers deep', function() {
   equal(obj.barCnt, 2, 'should invoke both');
 
   // Try overriding on create also
-  obj = FinalClass.create({
+  obj = FinalClass.createWithMixins({
     foo: function() { this.fooCnt++; this._super(); }
   });
 

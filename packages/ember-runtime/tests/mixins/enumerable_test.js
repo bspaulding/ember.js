@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require('ember-runtime/~tests/suites/enumerable');
 
 var indexOf = Ember.EnumerableUtils.indexOf;
@@ -32,7 +26,7 @@ var TestEnumerable = Ember.Object.extend(Ember.Enumerable, {
 
   length: Ember.computed(function() {
     return this._content.length;
-  }).property().cacheable(),
+  }),
 
   slice: function() {
     return this._content.slice();
@@ -61,6 +55,48 @@ Ember.EnumerableTests.extend({
 
 }).run();
 
+test("should apply Ember.Array to return value of map", function(){
+  var x = Ember.Object.createWithMixins(Ember.Enumerable);
+  var y = x.map(Ember.K);
+  equal(Ember.Array.detect(y), true, "should have mixin applied");
+});
+
+test("should apply Ember.Array to return value of filter", function(){
+  var x = Ember.Object.createWithMixins(Ember.Enumerable);
+  var y = x.filter(Ember.K);
+  equal(Ember.Array.detect(y), true, "should have mixin applied");
+});
+
+test("should apply Ember.Array to return value of invoke", function(){
+  var x = Ember.Object.createWithMixins(Ember.Enumerable);
+  var y = x.invoke(Ember.K);
+  equal(Ember.Array.detect(y), true, "should have mixin applied");
+});
+
+test("should apply Ember.Array to return value of toArray", function(){
+  var x = Ember.Object.createWithMixins(Ember.Enumerable);
+  var y = x.toArray(Ember.K);
+  equal(Ember.Array.detect(y), true, "should have mixin applied");
+});
+
+test("should apply Ember.Array to return value of without", function(){
+  var x = Ember.Object.createWithMixins(Ember.Enumerable, {
+    contains: function(){
+      return true;
+    }
+  });
+  var y = x.without(Ember.K);
+  equal(Ember.Array.detect(y), true, "should have mixin applied");
+});
+
+test("should apply Ember.Array to return value of uniq", function(){
+  var x = Ember.Object.createWithMixins(Ember.Enumerable);
+  var y = x.uniq(Ember.K);
+  equal(Ember.Array.detect(y), true, "should have mixin applied");
+});
+
+
+
 // ..........................................................
 // CONTENT DID CHANGE
 //
@@ -80,7 +116,7 @@ module('mixins/enumerable/enumerableContentDidChange');
 
 test('should notify observers of []', function() {
 
-  var obj = Ember.Object.create(Ember.Enumerable, {
+  var obj = Ember.Object.createWithMixins(Ember.Enumerable, {
     nextObject: function() {}, // avoid exceptions
 
     _count: 0,
@@ -102,7 +138,7 @@ test('should notify observers of []', function() {
 
 module('notify observers of length', {
   setup: function() {
-    obj = DummyEnum.create({
+    obj = DummyEnum.createWithMixins({
       _after: 0,
       lengthDidChange: Ember.observer(function() {
         this._after++;
@@ -171,7 +207,7 @@ module('notify enumerable observers', {
   setup: function() {
     obj = DummyEnum.create();
 
-    observer = Ember.Object.create({
+    observer = Ember.Object.createWithMixins({
       _before: null,
       _after: null,
 

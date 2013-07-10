@@ -1,8 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals Foo:true $foo:true */
 
 var obj, moduleOpts = {
@@ -15,13 +10,13 @@ var obj, moduleOpts = {
       }
     };
 
-    Foo = {
+    window.Foo = {
       bar: {
         baz: {}
       }
     };
 
-    $foo = {
+    window.$foo = {
       bar: {
         baz: {}
       }
@@ -29,8 +24,9 @@ var obj, moduleOpts = {
   },
 
   teardown: function() {
-    obj = null;
-    Foo = null;
+    obj = undefined;
+    window.Foo = undefined;
+    window.$foo = undefined;
   }
 };
 
@@ -65,10 +61,6 @@ test('[obj, this.foo] -> [obj, foo]', function() {
 });
 
 test('[obj, this.foo.bar] -> [obj, foo.bar]', function() {
-  deepEqual(Ember.normalizeTuple(obj, 'this.foo.bar'), [obj, 'foo.bar']);
-});
-
-test('[obj, .foo.bar] -> [obj, foo.bar]', function() {
   deepEqual(Ember.normalizeTuple(obj, 'this.foo.bar'), [obj, 'foo.bar']);
 });
 

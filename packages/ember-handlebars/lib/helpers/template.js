@@ -1,37 +1,58 @@
 require('ember-handlebars/ext');
 
 /**
+@module ember
+@submodule ember-handlebars
+*/
+
+/**
   `template` allows you to render a template from inside another template.
   This allows you to re-use the same template in multiple places. For example:
 
-      <script type="text/x-handlebars">
-        {{#with loggedInUser}}
-          Last Login: {{lastLogin}}
-          User Info: {{template "user_info"}}
-        {{/with}}
-      </script>
+  ```html
+  <script type="text/x-handlebars" data-template-name="logged_in_user">
+    {{#with loggedInUser}}
+      Last Login: {{lastLogin}}
+      User Info: {{template "user_info"}}
+    {{/with}}
+  </script>
+  ```
 
-      <script type="text/x-handlebars" data-template-name="user_info">
-        Name: <em>{{name}}</em>
-        Karma: <em>{{karma}}</em>
-      </script>
+  ```html
+  <script type="text/x-handlebars" data-template-name="user_info">
+    Name: <em>{{name}}</em>
+    Karma: <em>{{karma}}</em>
+  </script>
+  ```
 
-  This helper looks for templates in the global Ember.TEMPLATES hash. If you
-  add &lt;script&gt; tags to your page with the `data-template-name` attribute set,
+  ```handlebars
+  {{#if isUser}}
+    {{template "user_info"}}
+  {{else}}
+    {{template "unlogged_user_info"}}
+  {{/if}}
+  ```
+
+  This helper looks for templates in the global `Ember.TEMPLATES` hash. If you
+  add `<script>` tags to your page with the `data-template-name` attribute set,
   they will be compiled and placed in this hash automatically.
 
   You can also manually register templates by adding them to the hash:
 
-      Ember.TEMPLATES["my_cool_template"] = Ember.Handlebars.compile('<b>{{user}}</b>');
+  ```javascript
+  Ember.TEMPLATES["my_cool_template"] = Ember.Handlebars.compile('<b>{{user}}</b>');
+  ```
 
-  @name Handlebars.helpers.template
+  @method template
+  @for Ember.Handlebars.helpers
   @param {String} templateName the template to render
 */
 
 Ember.Handlebars.registerHelper('template', function(name, options) {
-  var template = Ember.TEMPLATES[name];
+  var view = options.data.view,
+      template = view.templateForName(name);
 
   Ember.assert("Unable to find template with name '"+name+"'.", !!template);
 
-  Ember.TEMPLATES[name](this, { data: options.data });
+  template(this, { data: options.data });
 });

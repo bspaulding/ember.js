@@ -1,28 +1,36 @@
+/**
+@module ember
+@submodule ember-routing
+*/
+
 var get = Ember.get, set = Ember.set;
 
-/**
+/*
   This file implements the `location` API used by Ember's router.
 
   That API is:
 
   getURL: returns the current URL
   setURL(path): sets the current URL
+  replaceURL(path): replace the current URL (optional)
   onUpdateURL(callback): triggers the callback when the URL changes
   formatURL(url): formats `url` to be placed into `href` attribute
 
-  Calling setURL will not trigger onUpdateURL callbacks.
+  Calling setURL or replaceURL will not trigger onUpdateURL callbacks.
 
-  TODO: This, as well as the Ember.Location documentation below, should
-  perhaps be moved so that it's visible in the JsDoc output.
+  TODO: This should perhaps be moved so that it's visible in the doc output.
 */
-/**
-  @class
 
+/**
   Ember.Location returns an instance of the correct implementation of
   the `location` API.
 
   You can pass it a `implementation` ('hash', 'history', 'none') to force a
   particular implementation.
+
+  @class Location
+  @namespace Ember
+  @static
 */
 Ember.Location = {
   create: function(options) {

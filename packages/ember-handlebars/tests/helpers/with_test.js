@@ -5,13 +5,18 @@ var appendView = function(view) {
 };
 
 var view;
+var originalLookup = Ember.lookup, lookup;
 
 module("Handlebars {{#with}} helper", {
   setup: function() {
+    Ember.lookup = lookup = { Ember: Ember };
+
     view = Ember.View.create({
       template: Ember.Handlebars.compile("{{#with person as tom}}{{title}}: {{tom.name}}{{/with}}"),
-      title: "Señor Engineer",
-      person: { name: "Tom Dale" }
+      context: {
+        title: "Señor Engineer",
+        person: { name: "Tom Dale" }
+      }
     });
 
     appendView(view);
@@ -21,6 +26,7 @@ module("Handlebars {{#with}} helper", {
     Ember.run(function(){
       view.destroy();
     });
+    Ember.lookup = originalLookup;
   }
 });
 
@@ -30,7 +36,7 @@ test("it should support #with foo as bar", function() {
 
 test("updating the context should update the alias", function() {
   Ember.run(function() {
-    view.set('person', {
+    view.set('context.person', {
       name: "Yehuda Katz"
     });
   });
@@ -40,7 +46,7 @@ test("updating the context should update the alias", function() {
 
 test("updating a property on the context should update the HTML", function() {
   Ember.run(function() {
-    Ember.set(view, 'person.name', "Yehuda Katz");
+    Ember.set(view, 'context.person.name', "Yehuda Katz");
   });
 
   equal(view.$().text(), "Señor Engineer: Yehuda Katz", "should be properly scoped after updating");
@@ -48,7 +54,7 @@ test("updating a property on the context should update the HTML", function() {
 
 test("updating a property on the view should update the HTML", function() {
   Ember.run(function() {
-    view.set('title', "Señorette Engineer");
+    view.set('context.title', "Señorette Engineer");
   });
 
   equal(view.$().text(), "Señorette Engineer: Tom Dale", "should be properly scoped after updating");
@@ -56,7 +62,9 @@ test("updating a property on the view should update the HTML", function() {
 
 module("Handlebars {{#with}} globals helper", {
   setup: function() {
-    window.Foo = { bar: 'baz' };
+    Ember.lookup = lookup = { Ember: Ember };
+
+    lookup.Foo = { bar: 'baz' };
     view = Ember.View.create({
       template: Ember.Handlebars.compile("{{#with Foo.bar as qux}}{{qux}}{{/with}}")
     });
@@ -66,9 +74,9 @@ module("Handlebars {{#with}} globals helper", {
 
   teardown: function() {
     Ember.run(function(){
-      window.Foo = null;
       view.destroy();
     });
+    Ember.lookup = originalLookup;
   }
 });
 
@@ -76,7 +84,7 @@ test("it should support #with Foo.bar as qux", function() {
   equal(view.$().text(), "baz", "should be properly scoped");
 
   Ember.run(function() {
-    Ember.set(Foo, 'bar', 'updated');
+    Ember.set(lookup.Foo, 'bar', 'updated');
   });
 
   equal(view.$().text(), "updated", "should update");
@@ -98,40 +106,50 @@ test("it should support #with view as foo", function() {
   });
 
   equal(view.$().text(), "Thunder", "should update");
+
+  Ember.run(function() {
+    view.destroy();
+  });
 });
 
-test("it should support #with foo as bar, then #with bar as qux", function() {
+test("it should support #with name as food, then #with foo as bar", function() {
   var view = Ember.View.create({
-    template: Ember.Handlebars.compile("{{#with view.name as foo}}{{#with foo as bar}}{{bar}}{{/with}}{{/with}}"),
-    name: "caterpillar"
+    template: Ember.Handlebars.compile("{{#with name as foo}}{{#with foo as bar}}{{bar}}{{/with}}{{/with}}"),
+    context: { name: "caterpillar" }
   });
 
   appendView(view);
   equal(view.$().text(), "caterpillar", "should be properly scoped");
 
   Ember.run(function() {
-    Ember.set(view, 'name', "butterfly");
+    Ember.set(view, 'context.name', "butterfly");
   });
 
   equal(view.$().text(), "butterfly", "should update");
+
+  Ember.run(function() {
+    view.destroy();
+  });
 });
 
-if (Ember.VIEW_PRESERVES_CONTEXT) {
-  module("Handlebars {{#with this as foo}}");
+module("Handlebars {{#with this as foo}}");
 
-  test("it should support #with this as qux", function() {
-    var view = Ember.View.create({
-      template: Ember.Handlebars.compile("{{#with this as person}}{{person.name}}{{/with}}"),
-      controller: Ember.Object.create({ name: "Los Pivots" })
-    });
-
-    appendView(view);
-    equal(view.$().text(), "Los Pivots", "should be properly scoped");
-
-    Ember.run(function() {
-      Ember.set(view, 'controller.name', "l'Pivots");
-    });
-
-    equal(view.$().text(), "l'Pivots", "should update");
+test("it should support #with this as qux", function() {
+  var view = Ember.View.create({
+    template: Ember.Handlebars.compile("{{#with this as person}}{{person.name}}{{/with}}"),
+    controller: Ember.Object.create({ name: "Los Pivots" })
   });
-}
+
+  appendView(view);
+  equal(view.$().text(), "Los Pivots", "should be properly scoped");
+
+  Ember.run(function() {
+    Ember.set(view, 'controller.name', "l'Pivots");
+  });
+
+  equal(view.$().text(), "l'Pivots", "should update");
+
+  Ember.run(function() {
+    view.destroy();
+  });
+});

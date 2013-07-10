@@ -19,9 +19,9 @@
     teardown: function() {
       Ember.run(function(){
         parentView.destroy();
-            childView.destroy();
+        childView.destroy();
       });
-      
+
       childViews = null;
     }
   });
@@ -67,17 +67,17 @@
 
     equal(outer.get('middle.childViews.length'), 2, 'precond middle has 2 child views rendered to buffer');
 
-    try {
-      Ember.TESTING_DEPRECATION = true;
+    raises(function() {
       Ember.run(function() {
         outer.middle.rerender();
       });
-    } finally {
-      Ember.TESTING_DEPRECATION = false;
-    }
+    }, /Something you did caused a view to re-render after it rendered but before it was inserted into the DOM./);
 
     equal(outer.get('middle.childViews.length'), 2, 'middle has 2 child views rendered to buffer');
 
+    Ember.run(function() {
+      outer.destroy();
+    });
   });
 
 })();

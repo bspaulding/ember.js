@@ -1,8 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals testBoth */
 
 require('ember-metal/~tests/props_helper');
@@ -89,4 +84,23 @@ test('unwatching should be nested', function() {
   Ember.set(obj, 'foo', 'BAZ');
   equal(willCount, 0, 'should NOT have invoked willCount');
   equal(didCount, 0, 'should NOT have invoked didCount');
+});
+
+testBoth('unwatching "length" property on an object', function(get, set) {
+
+  var obj = { foo: 'RUN' };
+
+  // Can watch length when it is undefined
+  Ember.watch(obj, 'length');
+  set(obj, 'length', '10k');
+  equal(willCount, 1, 'should have invoked willCount');
+  equal(didCount, 1, 'should have invoked didCount');
+
+  // Should stop watching despite length now being defined (making object 'array-like')
+  Ember.unwatch(obj, 'length');
+  willCount = didCount = 0;
+  set(obj, 'length', '5k');
+  equal(willCount, 0, 'should NOT have invoked willCount');
+  equal(didCount, 0, 'should NOT have invoked didCount');
+
 });

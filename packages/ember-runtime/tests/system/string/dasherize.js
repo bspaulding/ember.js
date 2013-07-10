@@ -1,10 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 module('Ember.String.dasherize');
 
 test("dasherize normal string", function() {
@@ -32,6 +25,13 @@ test("dasherize camelcased string", function() {
   deepEqual(Ember.String.dasherize('innerHTML'), 'inner-html');
   if (Ember.EXTEND_PROTOTYPES) {
     deepEqual('innerHTML'.dasherize(), 'inner-html');
+  }
+});
+
+test("dasherize string that is the property name of Object.prototype", function() {
+  deepEqual(Ember.String.dasherize('toString'), 'to-string');
+  if (Ember.EXTEND_PROTOTYPES) {
+    deepEqual('toString'.dasherize(), 'to-string');
   }
 });
 

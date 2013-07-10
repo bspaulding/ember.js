@@ -1,16 +1,16 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 module('Ember.String.camelize');
 
 test("camelize normal string", function() {
   deepEqual(Ember.String.camelize('my favorite items'), 'myFavoriteItems');
   if (Ember.EXTEND_PROTOTYPES) {
     deepEqual('my favorite items'.camelize(), 'myFavoriteItems');
+  }
+});
+
+test("camelize capitalized string", function() {
+  deepEqual(Ember.String.camelize('I Love Ramen'), 'iLoveRamen');
+  if (Ember.EXTEND_PROTOTYPES) {
+    deepEqual('I Love Ramen'.camelize(), 'iLoveRamen');
   }
 });
 
@@ -25,6 +25,13 @@ test("camelize underscored string", function() {
   deepEqual(Ember.String.camelize('action_name'), 'actionName');
   if (Ember.EXTEND_PROTOTYPES) {
     deepEqual('action_name'.camelize(), 'actionName');
+  }
+});
+
+test("camelize dot notation string", function() {
+  deepEqual(Ember.String.camelize('action.name'), 'actionName');
+  if (Ember.EXTEND_PROTOTYPES) {
+    deepEqual('action.name'.camelize(), 'actionName');
   }
 });
 

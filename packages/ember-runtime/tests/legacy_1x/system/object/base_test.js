@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals TestNamespace:true*/
 
 /*
@@ -31,14 +25,6 @@
 var obj, obj1, don, don1 ; // global variables
 
 var get = Ember.get, set = Ember.set;
-
-function inArray(item, array) {
-  var len = array.length, idx;
-  for (idx=0; idx<len; idx++) {
-    if (array[idx] === item) { return idx; }
-  }
-  return -1;
-}
 
 module("A new Ember.Object instance", {
 
@@ -86,7 +72,7 @@ module("Ember.Object observers", {
     };
 
     // create an object
-    obj = Ember.Object.create({
+    obj = Ember.Object.createWithMixins({
       prop1: null,
 
       // normal observer

@@ -1,17 +1,25 @@
-// ==========================================================================
-// Project:  Ember Metal
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
+/**
+Ember Metal
+
+@module ember
+@submodule ember-metal
+*/
 
 require('ember-metal/core');
+require('ember-metal/instrumentation');
 require('ember-metal/map');
 require('ember-metal/platform');
 require('ember-metal/utils');
-require('ember-metal/accessors');
+require('ember-metal/property_get');
+require('ember-metal/property_set');
 require('ember-metal/properties');
+require('ember-metal/property_events');
+require('ember-metal/set_properties');
+require('ember-metal/chains');
 require('ember-metal/computed');
 require('ember-metal/watching');
+require('ember-metal/watch_key');
+require('ember-metal/watch_path');
 require('ember-metal/events');
 require('ember-metal/observer');
 require('ember-metal/mixin');

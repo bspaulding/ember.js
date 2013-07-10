@@ -1,8 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals setup raises */
 
 var PartialMixin, FinalMixin, obj;
@@ -24,23 +19,6 @@ module('Module.required', {
   teardown: function() {
     PartialMixin = FinalMixin = obj = null;
   }
-});
-
-test('applying a mixin with unmet requirement', function() {
-  raises(function() {
-    PartialMixin.apply(obj);
-  }, Error, 'should raise error for unmet requirement');
-});
-
-test('applying a mixin with unmet requirement using applyPartial', function() {
-  PartialMixin.applyPartial(obj);
-  equal(obj.foo, null, 'obj.foo has required');
-
-  // applying regularly to object should throw
-  raises(function() {
-    Ember.Mixin.create({ bar: 'BAR' }).apply(obj);
-  }, Error, 'should raise error for unmet requirement');
-
 });
 
 test('applying a mixin to meet requirement', function() {

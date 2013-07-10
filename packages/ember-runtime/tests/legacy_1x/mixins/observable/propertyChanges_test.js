@@ -1,10 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 /*
   NOTE: This test is adapted from the 1.x series of unit tests.  The tests
   are the same except for places where we intend to break the API we instead
@@ -31,7 +24,7 @@ var revMatches = false , ObjectA;
 
 module("object.propertyChanges", {
   setup: function() {
-    ObjectA = ObservableObject.create({
+    ObjectA = ObservableObject.createWithMixins({
       foo  : 'fooValue',
       prop : 'propValue',
 
@@ -122,7 +115,7 @@ test("should notify that the property of an object has changed", function() {
 
 test("should invalidate function property cache when notifyPropertyChange is called", function() {
 
-  var a = ObservableObject.create({
+  var a = ObservableObject.createWithMixins({
     _b: null,
     b: Ember.computed(function(key, value) {
       if (value !== undefined) {

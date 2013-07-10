@@ -1,19 +1,18 @@
-// ==========================================================================
-// Project:   Ember Handlebars Views
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
 /*globals Handlebars */
 
 // TODO: Don't require the entire module
 require("ember-handlebars");
 
-var get = Ember.get, set = Ember.set;
-var PARENT_VIEW_PATH = /^parentView\./;
-var EmberHandlebars = Ember.Handlebars;
-var VIEW_PRESERVES_CONTEXT = Ember.VIEW_PRESERVES_CONTEXT;
+/**
+@module ember
+@submodule ember-handlebars
+*/
 
-/** @private */
+var get = Ember.get, set = Ember.set;
+var EmberHandlebars = Ember.Handlebars;
+var LOWERCASE_A_Z = /^[a-z]/;
+var VIEW_PREFIX = /^view\./;
+
 EmberHandlebars.ViewHelper = Ember.Object.create({
 
   propertiesFromHTMLOptions: function(options, thisContext) {
@@ -24,6 +23,11 @@ EmberHandlebars.ViewHelper = Ember.Object.create({
 
     if (hash.id) {
       extensions.elementId = hash.id;
+      dup = true;
+    }
+
+    if (hash.tag) {
+      extensions.tagName = hash.tag;
       dup = true;
     }
 
@@ -53,6 +57,7 @@ EmberHandlebars.ViewHelper = Ember.Object.create({
     if (dup) {
       hash = Ember.$.extend({}, hash);
       delete hash.id;
+      delete hash.tag;
       delete hash['class'];
       delete hash.classBinding;
     }
@@ -84,17 +89,13 @@ EmberHandlebars.ViewHelper = Ember.Object.create({
           //
           // is converted to this:
           //
-          //     classNameBinding="bindingContext.isGreen:green"
+          //     classNameBinding="_parentView.context.isGreen:green"
           var parsedPath = Ember.View._parsePropertyPath(full);
           path = this.contextualizeBindingPath(parsedPath.path, data);
           if (path) { extensions.classNameBindings[b] = path + parsedPath.classNames; }
         }
       }
     }
-
-    // Make the current template context available to the view
-    // for the bindings set up above.
-    extensions.bindingContext = thisContext;
 
     return Ember.$.extend(hash, extensions);
   },
@@ -110,41 +111,50 @@ EmberHandlebars.ViewHelper = Ember.Object.create({
     } else if (Ember.isGlobalPath(path)) {
       return null;
     } else if (path === 'this') {
-      return 'bindingContext';
+      return '_parentView.context';
     } else {
-      return 'bindingContext.' + path;
+      return '_parentView.context.' + path;
     }
   },
 
   helper: function(thisContext, path, options) {
-    var inverse = options.inverse,
-        data = options.data,
-        view = data.view,
+    var data = options.data,
         fn = options.fn,
-        hash = options.hash,
         newView;
 
     if ('string' === typeof path) {
-      newView = EmberHandlebars.getPath(thisContext, path, options);
+
+      // TODO: this is a lame conditional, this should likely change
+      // but something along these lines will likely need to be added
+      // as deprecation warnings
+      //
+      if (options.types[0] === 'STRING' && LOWERCASE_A_Z.test(path) && !VIEW_PREFIX.test(path)) {
+        Ember.assert("View requires a container", !!data.view.container);
+        newView = data.view.container.lookupFactory('view:' + path);
+      } else {
+        newView = EmberHandlebars.get(thisContext, path, options);
+      }
+
       Ember.assert("Unable to find view at path '" + path + "'", !!newView);
     } else {
       newView = path;
     }
 
-    Ember.assert(Ember.String.fmt('You must pass a view class to the #view helper, not %@ (%@)', [path, newView]), Ember.View.detect(newView));
+    Ember.assert(Ember.String.fmt('You must pass a view to the #view helper, not %@ (%@)', [path, newView]), Ember.View.detect(newView) || Ember.View.detectInstance(newView));
 
     var viewOptions = this.propertiesFromHTMLOptions(options, thisContext);
     var currentView = data.view;
-    viewOptions.templateData = options.data;
+    viewOptions.templateData = data;
+    var newViewProto = newView.proto ? newView.proto() : newView;
 
     if (fn) {
-      Ember.assert("You cannot provide a template block if you also specified a templateName", !get(viewOptions, 'templateName') && !get(newView.proto(), 'templateName'));
+      Ember.assert("You cannot provide a template block if you also specified a templateName", !get(viewOptions, 'templateName') && !get(newViewProto, 'templateName'));
       viewOptions.template = fn;
     }
 
     // We only want to override the `_context` computed property if there is
     // no specified controller. See View#_context for more information.
-    if (VIEW_PRESERVES_CONTEXT && !newView.proto().controller && !newView.proto().controllerBinding && !viewOptions.controller && !viewOptions.controllerBinding) {
+    if (!newViewProto.controller && !newViewProto.controllerBinding && !viewOptions.controller && !viewOptions.controllerBinding) {
       viewOptions._context = thisContext;
     }
 
@@ -153,148 +163,169 @@ EmberHandlebars.ViewHelper = Ember.Object.create({
 });
 
 /**
-  `{{view}}` inserts a new instance of `Ember.View` into a template passing its options
-  to the `Ember.View`'s `create` method and using the supplied block as the view's own template.
+  `{{view}}` inserts a new instance of `Ember.View` into a template passing its
+  options to the `Ember.View`'s `create` method and using the supplied block as
+  the view's own template.
 
   An empty `<body>` and the following template:
 
-      <script type="text/x-handlebars">
-        A span:
-        {{#view tagName="span"}}
-          hello.
-        {{/view}}
-      </script>
+  ```handlebars
+  A span:
+  {{#view tagName="span"}}
+    hello.
+  {{/view}}
+  ```
 
   Will result in HTML structure:
 
-      <body>
-        <!-- Note: the handlebars template script 
-             also results in a rendered Ember.View
-             which is the outer <div> here -->
+  ```html
+  <body>
+    <!-- Note: the handlebars template script
+         also results in a rendered Ember.View
+         which is the outer <div> here -->
 
-        <div class="ember-view">
-          A span:
-          <span id="ember1" class="ember-view">
-            Hello.
-          </span>
-        </div>
-      </body>
+    <div class="ember-view">
+      A span:
+      <span id="ember1" class="ember-view">
+        Hello.
+      </span>
+    </div>
+  </body>
+  ```
 
-  ### parentView setting
+  ### `parentView` setting
 
-  The `parentView` property of the new `Ember.View` instance created through `{{view}}`
-  will be set to the `Ember.View` instance of the template where `{{view}}` was called.
+  The `parentView` property of the new `Ember.View` instance created through
+  `{{view}}` will be set to the `Ember.View` instance of the template where
+  `{{view}}` was called.
 
-      aView = Ember.View.create({
-        template: Ember.Handlebars.compile("{{#view}} my parent: {{parentView.elementId}} {{/view}}")
-      })
+  ```javascript
+  aView = Ember.View.create({
+    template: Ember.Handlebars.compile("{{#view}} my parent: {{parentView.elementId}} {{/view}}")
+  });
 
-      aView.appendTo('body')
-    
+  aView.appendTo('body');
+  ```
+
   Will result in HTML structure:
 
-      <div id="ember1" class="ember-view">
-        <div id="ember2" class="ember-view">
-          my parent: ember1
-        </div>
-      </div>
+  ```html
+  <div id="ember1" class="ember-view">
+    <div id="ember2" class="ember-view">
+      my parent: ember1
+    </div>
+  </div>
+  ```
 
   ### Setting CSS id and class attributes
 
-  The HTML `id` attribute can be set on the `{{view}}`'s resulting element with the `id` option.
-  This option will _not_ be passed to `Ember.View.create`.
+  The HTML `id` attribute can be set on the `{{view}}`'s resulting element with
+  the `id` option. This option will _not_ be passed to `Ember.View.create`.
 
-      <script type="text/x-handlebars">
-        {{#view tagName="span" id="a-custom-id"}}
-          hello.
-        {{/view}}
-      </script>
+  ```handlebars
+  {{#view tagName="span" id="a-custom-id"}}
+    hello.
+  {{/view}}
+  ```
 
   Results in the following HTML structure:
 
-      <div class="ember-view">
-        <span id="a-custom-id" class="ember-view">
-          hello.
-        </span>
-      </div>
+  ```html
+  <div class="ember-view">
+    <span id="a-custom-id" class="ember-view">
+      hello.
+    </span>
+  </div>
+  ```
 
-  The HTML `class` attribute can be set on the `{{view}}`'s resulting element with
-  the `class` or `classNameBindings` options. The `class` option
-  will directly set the CSS `class` attribute and will not be passed to
+  The HTML `class` attribute can be set on the `{{view}}`'s resulting element
+  with the `class` or `classNameBindings` options. The `class` option will
+  directly set the CSS `class` attribute and will not be passed to
   `Ember.View.create`. `classNameBindings` will be passed to `create` and use
   `Ember.View`'s class name binding functionality:
 
-      <script type="text/x-handlebars">
-        {{#view tagName="span" class="a-custom-class"}}
-          hello.
-        {{/view}}
-      </script>
+  ```handlebars
+  {{#view tagName="span" class="a-custom-class"}}
+    hello.
+  {{/view}}
+  ```
 
   Results in the following HTML structure:
 
-      <div class="ember-view">
-        <span id="ember2" class="ember-view a-custom-class">
-          hello.
-        </span>
-      </div>
+  ```html
+  <div class="ember-view">
+    <span id="ember2" class="ember-view a-custom-class">
+      hello.
+    </span>
+  </div>
+  ```
 
   ### Supplying a different view class
-  `{{view}}` can take an optional first argument before its supplied options to specify a
-  path to a custom view class.
 
-      <script type="text/x-handlebars">
-        {{#view "MyApp.CustomView"}}
-          hello.
-        {{/view}}
-      </script>
+  `{{view}}` can take an optional first argument before its supplied options to
+  specify a path to a custom view class.
 
-  The first argument can also be a relative path. Ember will search for the view class
-  starting at the `Ember.View` of the template where `{{view}}` was used as the root object:
+  ```handlebars
+  {{#view "MyApp.CustomView"}}
+    hello.
+  {{/view}}
+  ```
 
-      MyApp = Ember.Application.create({})
-      MyApp.OuterView = Ember.View.extend({
-        innerViewClass: Ember.View.extend({
-          classNames: ['a-custom-view-class-as-property']
-        }),
-        template: Ember.Handlebars.compile('{{#view "innerViewClass"}} hi {{/view}}')
-      })
+  The first argument can also be a relative path accessible from the current
+  context.
 
-      MyApp.OuterView.create().appendTo('body')
+  ```javascript
+  MyApp = Ember.Application.create({});
+  MyApp.OuterView = Ember.View.extend({
+    innerViewClass: Ember.View.extend({
+      classNames: ['a-custom-view-class-as-property']
+    }),
+    template: Ember.Handlebars.compile('{{#view "view.innerViewClass"}} hi {{/view}}')
+  });
 
-Will result in the following HTML:
+  MyApp.OuterView.create().appendTo('body');
+  ```
 
-      <div id="ember1" class="ember-view">
-        <div id="ember2" class="ember-view a-custom-view-class-as-property"> 
-          hi
-        </div>
-      </div>
+  Will result in the following HTML:
+
+  ```html
+  <div id="ember1" class="ember-view">
+    <div id="ember2" class="ember-view a-custom-view-class-as-property">
+      hi
+    </div>
+  </div>
+  ```
 
   ### Blockless use
 
   If you supply a custom `Ember.View` subclass that specifies its own template
-  or provide a `templateName` option to `{{view}}` it can be used without supplying a block.
-  Attempts to use both a `templateName` option and supply a block will throw an error.
+  or provide a `templateName` option to `{{view}}` it can be used without
+  supplying a block. Attempts to use both a `templateName` option and supply a
+  block will throw an error.
 
-      <script type="text/x-handlebars">
-        {{view "MyApp.ViewWithATemplateDefined"}}
-      </script>
+  ```handlebars
+  {{view "MyApp.ViewWithATemplateDefined"}}
+  ```
 
-  ### viewName property
+  ### `viewName` property
 
-  You can supply a `viewName` option to `{{view}}`. The `Ember.View` instance will
-  be referenced as a property of its parent view by this name.
+  You can supply a `viewName` option to `{{view}}`. The `Ember.View` instance
+  will be referenced as a property of its parent view by this name.
 
-      aView = Ember.View.create({
-        template: Ember.Handlebars.compile('{{#view viewName="aChildByName"}} hi {{/view}}')
-      })
+  ```javascript
+  aView = Ember.View.create({
+    template: Ember.Handlebars.compile('{{#view viewName="aChildByName"}} hi {{/view}}')
+  });
 
-      aView.appendTo('body')
-      aView.get('aChildByName') // the instance of Ember.View created by {{view}} helper
+  aView.appendTo('body');
+  aView.get('aChildByName') // the instance of Ember.View created by {{view}} helper
+  ```
 
-  @name Handlebars.helpers.view
+  @method view
+  @for Ember.Handlebars.helpers
   @param {String} path
   @param {Hash} options
-  @returns {String} HTML string
+  @return {String} HTML string
 */
 EmberHandlebars.registerHelper('view', function(path, options) {
   Ember.assert("The view helper only takes a single argument", arguments.length <= 2);

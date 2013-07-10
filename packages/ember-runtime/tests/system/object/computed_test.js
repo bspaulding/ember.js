@@ -1,9 +1,3 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2011 Strobe Inc. and contributors.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require('ember-runtime/~tests/props_helper');
 
 module('Ember.Object computed property');
@@ -11,7 +5,7 @@ module('Ember.Object computed property');
 testWithDefault('computed property on instance', function(get, set) {
 
   var MyClass = Ember.Object.extend({
-    foo: Ember.computed(function() { return 'FOO'; }).cacheable()
+    foo: Ember.computed(function() { return 'FOO'; })
   });
 
   equal(get(new MyClass(), 'foo'), 'FOO');
@@ -22,11 +16,11 @@ testWithDefault('computed property on instance', function(get, set) {
 testWithDefault('computed property on subclass', function(get, set) {
 
   var MyClass = Ember.Object.extend({
-    foo: Ember.computed(function() { return 'FOO'; }).cacheable()
+    foo: Ember.computed(function() { return 'FOO'; })
   });
 
   var Subclass = MyClass.extend({
-    foo: Ember.computed(function() { return 'BAR'; }).cacheable()
+    foo: Ember.computed(function() { return 'BAR'; })
   });
 
   equal(get(new Subclass(), 'foo'), 'BAR');
@@ -37,7 +31,7 @@ testWithDefault('computed property on subclass', function(get, set) {
 testWithDefault('replacing computed property with regular val', function(get, set) {
 
   var MyClass = Ember.Object.extend({
-    foo: Ember.computed(function() { return 'FOO'; }).cacheable()
+    foo: Ember.computed(function() { return 'FOO'; })
   });
 
   var Subclass = MyClass.extend({
@@ -62,7 +56,7 @@ testWithDefault('complex depndent keys', function(get, set) {
     foo: Ember.computed(function() {
       set(this, 'count', get(this, 'count')+1);
       return Ember.get(get(this, 'bar'), 'baz') + ' ' + get(this, 'count');
-    }).property('bar.baz').cacheable()
+    }).property('bar.baz')
 
   });
 
@@ -101,7 +95,7 @@ testWithDefault('complex depndent keys changing complex dependent keys', functio
     foo: Ember.computed(function() {
       set(this, 'count', get(this, 'count')+1);
       return Ember.get(get(this, 'bar'), 'baz') + ' ' + get(this, 'count');
-    }).property('bar.baz').cacheable()
+    }).property('bar.baz')
 
   });
 
@@ -117,7 +111,7 @@ testWithDefault('complex depndent keys changing complex dependent keys', functio
     foo: Ember.computed(function() {
       set(this, 'count', get(this, 'count')+1);
       return Ember.get(get(this, 'bar2'), 'baz') + ' ' + get(this, 'count');
-    }).property('bar2.baz').cacheable()
+    }).property('bar2.baz')
   });
 
   var obj2 = new Subclass();
@@ -136,27 +130,27 @@ test("can retrieve metadata for a computed property", function() {
 
   var MyClass = Ember.Object.extend({
     computedProperty: Ember.computed(function() {
-    }).property().meta({ key: 'keyValue' })
+    }).meta({ key: 'keyValue' })
   });
 
   equal(get(MyClass.metaForProperty('computedProperty'), 'key'), 'keyValue', "metadata saved on the computed property can be retrieved");
 
   var ClassWithNoMetadata = Ember.Object.extend({
     computedProperty: Ember.computed(function() {
-    }).property().volatile(),
+    }).volatile(),
 
     staticProperty: 12
   });
 
   equal(typeof ClassWithNoMetadata.metaForProperty('computedProperty'), "object", "returns empty hash if no metadata has been saved");
 
-  raises(function() {
+  expectAssertion(function() {
     ClassWithNoMetadata.metaForProperty('nonexistentProperty');
-  }, Error, "throws an error if metadata for a non-existent property is requested");
+  }, "metaForProperty() could not find a computed property with key 'nonexistentProperty'.");
 
-  raises(function() {
+  expectAssertion(function() {
     ClassWithNoMetadata.metaForProperty('staticProperty');
-  }, Error, "throws an error if metadata for a non-computed property is requested");
+  }, "metaForProperty() could not find a computed property with key 'staticProperty'.");
 });
 
 testBoth("can iterate over a list of computed properties for a class", function(get, set) {

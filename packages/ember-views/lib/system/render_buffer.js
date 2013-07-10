@@ -1,14 +1,10 @@
-// ==========================================================================
-// Project:   Ember - JavaScript Application Framework
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            Portions ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
+/**
+@module ember
+@submodule ember-views
+*/
 
 var get = Ember.get, set = Ember.set;
-var indexOf = Ember.ArrayPolyfills.indexOf;
 
-/** @private */
 var ClassSet = function() {
   this.seen = {};
   this.list = [];
@@ -28,43 +24,63 @@ ClassSet.prototype = {
 };
 
 /**
-  @class
-
-  Ember.RenderBuffer gathers information regarding the a view and generates the
-  final representation. Ember.RenderBuffer will generate HTML which can be pushed
+  `Ember.RenderBuffer` gathers information regarding the a view and generates the
+  final representation. `Ember.RenderBuffer` will generate HTML which can be pushed
   to the DOM.
 
-  @extends Ember.Object
+  @class RenderBuffer
+  @namespace Ember
+  @constructor
 */
 Ember.RenderBuffer = function(tagName) {
   return new Ember._RenderBuffer(tagName);
 };
 
 Ember._RenderBuffer = function(tagName) {
-  this.elementTag = tagName;
-  this.childBuffers = [];
+  this.tagNames = [tagName || null];
+  this.buffer = "";
 };
 
 Ember._RenderBuffer.prototype =
 /** @scope Ember.RenderBuffer.prototype */ {
 
+  // The root view's element
+  _element: null,
+
+  _hasElement: true,
+
   /**
-    Array of class-names which will be applied in the class="" attribute
+    @private
 
-    You should not maintain this array yourself, rather, you should use
-    the addClass() method of Ember.RenderBuffer.
+    An internal set used to de-dupe class names when `addClass()` is
+    used. After each call to `addClass()`, the `classes` property
+    will be updated.
 
+    @property elementClasses
     @type Array
     @default []
   */
   elementClasses: null,
 
   /**
-    The id in of the element, to be applied in the id="" attribute
+    Array of class names which will be applied in the class attribute.
+
+    You can use `setClasses()` to set this property directly. If you
+    use `addClass()`, it will be maintained for you.
+
+    @property classes
+    @type Array
+    @default []
+  */
+  classes: null,
+
+  /**
+    The id in of the element, to be applied in the id attribute.
 
     You should not set this property yourself, rather, you should use
-    the id() method of Ember.RenderBuffer.
+    the `id()` method of `Ember.RenderBuffer`.
 
+    @property elementId
     @type String
     @default null
   */
@@ -73,25 +89,44 @@ Ember._RenderBuffer.prototype =
   /**
     A hash keyed on the name of the attribute and whose value will be
     applied to that attribute. For example, if you wanted to apply a
-    data-view="Foo.bar" property to an element, you would set the
-    elementAttributes hash to {'data-view':'Foo.bar'}
+    `data-view="Foo.bar"` property to an element, you would set the
+    elementAttributes hash to `{'data-view':'Foo.bar'}`.
 
     You should not maintain this hash yourself, rather, you should use
-    the attr() method of Ember.RenderBuffer.
+    the `attr()` method of `Ember.RenderBuffer`.
 
+    @property elementAttributes
     @type Hash
     @default {}
   */
   elementAttributes: null,
 
   /**
-    The tagname of the element an instance of Ember.RenderBuffer represents.
+    A hash keyed on the name of the properties and whose value will be
+    applied to that property. For example, if you wanted to apply a
+    `checked=true` property to an element, you would set the
+    elementProperties hash to `{'checked':true}`.
 
-    Usually, this gets set as the first parameter to Ember.RenderBuffer. For
+    You should not maintain this hash yourself, rather, you should use
+    the `prop()` method of `Ember.RenderBuffer`.
+
+    @property elementProperties
+    @type Hash
+    @default {}
+  */
+  elementProperties: null,
+
+  /**
+    The tagname of the element an instance of `Ember.RenderBuffer` represents.
+
+    Usually, this gets set as the first parameter to `Ember.RenderBuffer`. For
     example, if you wanted to create a `p` tag, then you would call
 
-      Ember.RenderBuffer('p')
+    ```javascript
+    Ember.RenderBuffer('p')
+    ```
 
+    @property elementTag
     @type String
     @default null
   */
@@ -100,55 +135,65 @@ Ember._RenderBuffer.prototype =
   /**
     A hash keyed on the name of the style attribute and whose value will
     be applied to that attribute. For example, if you wanted to apply a
-    background-color:black;" style to an element, you would set the
-    elementStyle hash to {'background-color':'black'}
+    `background-color:black;` style to an element, you would set the
+    elementStyle hash to `{'background-color':'black'}`.
 
     You should not maintain this hash yourself, rather, you should use
-    the style() method of Ember.RenderBuffer.
+    the `style()` method of `Ember.RenderBuffer`.
 
+    @property elementStyle
     @type Hash
     @default {}
   */
   elementStyle: null,
 
   /**
-    Nested RenderBuffers will set this to their parent RenderBuffer
+    Nested `RenderBuffers` will set this to their parent `RenderBuffer`
     instance.
 
+    @property parentBuffer
     @type Ember._RenderBuffer
   */
   parentBuffer: null,
 
   /**
-    Adds a string of HTML to the RenderBuffer.
+    Adds a string of HTML to the `RenderBuffer`.
 
+    @method push
     @param {String} string HTML to push into the buffer
-    @returns {Ember.RenderBuffer} this
+    @chainable
   */
   push: function(string) {
-    this.childBuffers.push(String(string));
+    this.buffer += string;
     return this;
   },
 
   /**
     Adds a class to the buffer, which will be rendered to the class attribute.
 
+    @method addClass
     @param {String} className Class name to add to the buffer
-    @returns {Ember.RenderBuffer} this
+    @chainable
   */
   addClass: function(className) {
     // lazily create elementClasses
-    var elementClasses = this.elementClasses = (this.elementClasses || new ClassSet());
+    this.elementClasses = (this.elementClasses || new ClassSet());
     this.elementClasses.add(className);
+    this.classes = this.elementClasses.list;
 
     return this;
+  },
+
+  setClasses: function(classNames) {
+    this.classes = classNames;
   },
 
   /**
     Sets the elementID to be used for the element.
 
+    @method id
     @param {String} id
-    @returns {Ember.RenderBuffer} this
+    @chainable
   */
   id: function(id) {
     this.elementId = id;
@@ -161,9 +206,11 @@ Ember._RenderBuffer.prototype =
   /**
     Adds an attribute which will be rendered to the element.
 
+    @method attr
     @param {String} name The name of the attribute
     @param {String} value The value to add to the attribute
-    @returns {Ember.RenderBuffer|String} this or the current attribute value
+    @chainable
+    @return {Ember.RenderBuffer|String} this or the current attribute value
   */
   attr: function(name, value) {
     var attributes = this.elementAttributes = (this.elementAttributes || {});
@@ -180,8 +227,9 @@ Ember._RenderBuffer.prototype =
   /**
     Remove an attribute from the list of attributes to render.
 
+    @method removeAttr
     @param {String} name The name of the attribute
-    @returns {Ember.RenderBuffer} this
+    @chainable
   */
   removeAttr: function(name) {
     var attributes = this.elementAttributes;
@@ -191,197 +239,233 @@ Ember._RenderBuffer.prototype =
   },
 
   /**
+    Adds an property which will be rendered to the element.
+
+    @method prop
+    @param {String} name The name of the property
+    @param {String} value The value to add to the property
+    @chainable
+    @return {Ember.RenderBuffer|String} this or the current property value
+  */
+  prop: function(name, value) {
+    var properties = this.elementProperties = (this.elementProperties || {});
+
+    if (arguments.length === 1) {
+      return properties[name];
+    } else {
+      properties[name] = value;
+    }
+
+    return this;
+  },
+
+  /**
+    Remove an property from the list of properties to render.
+
+    @method removeProp
+    @param {String} name The name of the property
+    @chainable
+  */
+  removeProp: function(name) {
+    var properties = this.elementProperties;
+    if (properties) { delete properties[name]; }
+
+    return this;
+  },
+
+  /**
     Adds a style to the style attribute which will be rendered to the element.
 
+    @method style
     @param {String} name Name of the style
     @param {String} value
-    @returns {Ember.RenderBuffer} this
+    @chainable
   */
   style: function(name, value) {
-    var style = this.elementStyle = (this.elementStyle || {});
+    this.elementStyle = (this.elementStyle || {});
 
     this.elementStyle[name] = value;
     return this;
   },
 
-  /**
-    Create a new child render buffer from a parent buffer. Optionally set
-    additional properties on the buffer. Optionally invoke a callback
-    with the newly created buffer.
-
-    This is a primitive method used by other public methods: `begin`,
-    `prepend`, `replaceWith`, `insertAfter`.
-
-    @private
-    @param {String} tagName Tag name to use for the child buffer's element
-    @param {Ember._RenderBuffer} parent The parent render buffer that this
-      buffer should be appended to.
-    @param {Function} fn A callback to invoke with the newly created buffer.
-    @param {Object} other Additional properties to add to the newly created
-      buffer.
-  */
-  newBuffer: function(tagName, parent, fn, other) {
-    var buffer = new Ember._RenderBuffer(tagName);
-    buffer.parentBuffer = parent;
-
-    if (other) { Ember.$.extend(buffer, other); }
-    if (fn) { fn.call(this, buffer); }
-
-    return buffer;
-  },
-
-  /**
-    Replace the current buffer with a new buffer. This is a primitive
-    used by `remove`, which passes `null` for `newBuffer`, and `replaceWith`,
-    which passes the new buffer it created.
-
-    @private
-    @param {Ember._RenderBuffer} buffer The buffer to insert in place of
-      the existing buffer.
-  */
-  replaceWithBuffer: function(newBuffer) {
-    var parent = this.parentBuffer;
-    if (!parent) { return; }
-
-    var childBuffers = parent.childBuffers;
-
-    var index = indexOf.call(childBuffers, this);
-
-    if (newBuffer) {
-      childBuffers.splice(index, 1, newBuffer);
-    } else {
-      childBuffers.splice(index, 1);
-    }
-  },
-
-  /**
-    Creates a new Ember.RenderBuffer object with the provided tagName as
-    the element tag and with its parentBuffer property set to the current
-    Ember.RenderBuffer.
-
-    @param {String} tagName Tag name to use for the child buffer's element
-    @returns {Ember.RenderBuffer} A new RenderBuffer object
-  */
   begin: function(tagName) {
-    return this.newBuffer(tagName, this, function(buffer) {
-      this.childBuffers.push(buffer);
-    });
+    this.tagNames.push(tagName || null);
+    return this;
+  },
+
+  pushOpeningTag: function() {
+    var tagName = this.currentTagName();
+    if (!tagName) { return; }
+
+    if (this._hasElement && !this._element && this.buffer.length === 0) {
+      this._element = this.generateElement();
+      return;
+    }
+
+    var buffer = this.buffer,
+        id = this.elementId,
+        classes = this.classes,
+        attrs = this.elementAttributes,
+        props = this.elementProperties,
+        style = this.elementStyle,
+        attr, prop;
+
+    buffer += '<' + tagName;
+
+    if (id) {
+      buffer += ' id="' + this._escapeAttribute(id) + '"';
+      this.elementId = null;
+    }
+    if (classes) {
+      buffer += ' class="' + this._escapeAttribute(classes.join(' ')) + '"';
+      this.classes = null;
+    }
+
+    if (style) {
+      buffer += ' style="';
+
+      for (prop in style) {
+        if (style.hasOwnProperty(prop)) {
+          buffer += prop + ':' + this._escapeAttribute(style[prop]) + ';';
+        }
+      }
+
+      buffer += '"';
+
+      this.elementStyle = null;
+    }
+
+    if (attrs) {
+      for (attr in attrs) {
+        if (attrs.hasOwnProperty(attr)) {
+          buffer += ' ' + attr + '="' + this._escapeAttribute(attrs[attr]) + '"';
+        }
+      }
+
+      this.elementAttributes = null;
+    }
+
+    if (props) {
+      for (prop in props) {
+        if (props.hasOwnProperty(prop)) {
+          var value = props[prop];
+          if (value || typeof(value) === 'number') {
+            if (value === true) {
+              buffer += ' ' + prop + '="' + prop + '"';
+            } else {
+              buffer += ' ' + prop + '="' + this._escapeAttribute(props[prop]) + '"';
+            }
+          }
+        }
+      }
+
+      this.elementProperties = null;
+    }
+
+    buffer += '>';
+    this.buffer = buffer;
+  },
+
+  pushClosingTag: function() {
+    var tagName = this.tagNames.pop();
+    if (tagName) { this.buffer += '</' + tagName + '>'; }
+  },
+
+  currentTagName: function() {
+    return this.tagNames[this.tagNames.length-1];
+  },
+
+  generateElement: function() {
+    var tagName = this.tagNames.pop(), // pop since we don't need to close
+        element = document.createElement(tagName),
+        $element = Ember.$(element),
+        id = this.elementId,
+        classes = this.classes,
+        attrs = this.elementAttributes,
+        props = this.elementProperties,
+        style = this.elementStyle,
+        styleBuffer = '', attr, prop;
+
+    if (id) {
+      $element.attr('id', id);
+      this.elementId = null;
+    }
+    if (classes) {
+      $element.attr('class', classes.join(' '));
+      this.classes = null;
+    }
+
+    if (style) {
+      for (prop in style) {
+        if (style.hasOwnProperty(prop)) {
+          styleBuffer += (prop + ':' + style[prop] + ';');
+        }
+      }
+
+      $element.attr('style', styleBuffer);
+
+      this.elementStyle = null;
+    }
+
+    if (attrs) {
+      for (attr in attrs) {
+        if (attrs.hasOwnProperty(attr)) {
+          $element.attr(attr, attrs[attr]);
+        }
+      }
+
+      this.elementAttributes = null;
+    }
+
+    if (props) {
+      for (prop in props) {
+        if (props.hasOwnProperty(prop)) {
+          $element.prop(prop, props[prop]);
+        }
+      }
+
+      this.elementProperties = null;
+    }
+
+    return element;
   },
 
   /**
-    Prepend a new child buffer to the current render buffer.
-
-    @param {String} tagName Tag name to use for the child buffer's element
-  */
-  prepend: function(tagName) {
-    return this.newBuffer(tagName, this, function(buffer) {
-      this.childBuffers.splice(0, 0, buffer);
-    });
-  },
-
-  /**
-    Replace the current buffer with a new render buffer.
-
-    @param {String} tagName Tag name to use for the new buffer's element
-  */
-  replaceWith: function(tagName) {
-    var parentBuffer = this.parentBuffer;
-
-    return this.newBuffer(tagName, parentBuffer, function(buffer) {
-      this.replaceWithBuffer(buffer);
-    });
-  },
-
-  /**
-    Insert a new render buffer after the current render buffer.
-
-    @param {String} tagName Tag name to use for the new buffer's element
-  */
-  insertAfter: function(tagName) {
-    var parentBuffer = get(this, 'parentBuffer');
-
-    return this.newBuffer(tagName, parentBuffer, function(buffer) {
-      var siblings = parentBuffer.childBuffers;
-      var index = indexOf.call(siblings, this);
-      siblings.splice(index + 1, 0, buffer);
-    });
-  },
-
-  /**
-    Closes the current buffer and adds its content to the parentBuffer.
-
-    @returns {Ember.RenderBuffer} The parentBuffer, if one exists. Otherwise, this
-  */
-  end: function() {
-    var parent = this.parentBuffer;
-    return parent || this;
-  },
-
-  remove: function() {
-    this.replaceWithBuffer(null);
-  },
-
-  /**
-    @returns {DOMElement} The element corresponding to the generated HTML
+    @method element
+    @return {DOMElement} The element corresponding to the generated HTML
       of this buffer
   */
   element: function() {
-    return Ember.$(this.string())[0];
+    var html = this.innerString();
+
+    if (html) {
+      this._element = Ember.ViewUtils.setInnerHTML(this._element, html);
+    }
+
+    return this._element;
   },
 
   /**
     Generates the HTML content for this buffer.
 
-    @returns {String} The generated HTMl
+    @method string
+    @return {String} The generated HTML
   */
   string: function() {
-    var content = '', tag = this.elementTag, openTag;
-
-    if (tag) {
-      var id = this.elementId,
-          classes = this.elementClasses,
-          attrs = this.elementAttributes,
-          style = this.elementStyle,
-          styleBuffer = '', prop;
-
-      openTag = ["<" + tag];
-
-      if (id) { openTag.push('id="' + this._escapeAttribute(id) + '"'); }
-      if (classes) { openTag.push('class="' + this._escapeAttribute(classes.toDOM()) + '"'); }
-
-      if (style) {
-        for (prop in style) {
-          if (style.hasOwnProperty(prop)) {
-            styleBuffer += (prop + ':' + this._escapeAttribute(style[prop]) + ';');
-          }
-        }
-
-        openTag.push('style="' + styleBuffer + '"');
+    if (this._hasElement && this._element) {
+      // Firefox versions < 11 do not have support for element.outerHTML.
+      var thisElement = this.element(), outerHTML = thisElement.outerHTML;
+      if (typeof outerHTML === 'undefined'){
+        return Ember.$('<div/>').append(thisElement).html();
       }
-
-      if (attrs) {
-        for (prop in attrs) {
-          if (attrs.hasOwnProperty(prop)) {
-            openTag.push(prop + '="' + this._escapeAttribute(attrs[prop]) + '"');
-          }
-        }
-      }
-
-      openTag = openTag.join(" ") + '>';
-    }
-
-    var childBuffers = this.childBuffers;
-
-    Ember.ArrayPolyfills.forEach.call(childBuffers, function(buffer) {
-      var stringy = typeof buffer === 'string';
-      content += (stringy ? buffer : buffer.string());
-    });
-
-    if (tag) {
-      return openTag + content + "</" + tag + ">";
+      return outerHTML;
     } else {
-      return content;
+      return this.innerString();
     }
+  },
+
+  innerString: function() {
+    return this.buffer;
   },
 
   _escapeAttribute: function(value) {

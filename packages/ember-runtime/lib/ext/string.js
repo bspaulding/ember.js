@@ -1,12 +1,10 @@
-// ==========================================================================
-// Project:  Ember Runtime
-// Copyright: ©2006-2011 Strobe Inc. and contributors.
-//            Portions ©2008-2011 Apple Inc. All rights reserved.
-// License:   Licensed under MIT license (see license.js)
-// ==========================================================================
-
 require('ember-runtime/core');
 require('ember-runtime/system/string');
+
+/**
+@module ember
+@submodule ember-runtime
+*/
 
 
 
@@ -16,57 +14,100 @@ var fmt = Ember.String.fmt,
     camelize = Ember.String.camelize,
     decamelize = Ember.String.decamelize,
     dasherize = Ember.String.dasherize,
-    underscore = Ember.String.underscore;
+    underscore = Ember.String.underscore,
+    capitalize = Ember.String.capitalize,
+    classify = Ember.String.classify;
 
-if (Ember.EXTEND_PROTOTYPES) {
+if (Ember.EXTEND_PROTOTYPES === true || Ember.EXTEND_PROTOTYPES.String) {
 
   /**
-    @see Ember.String.fmt
+    See `Ember.String.fmt`.
+
+    @method fmt
+    @for String
   */
   String.prototype.fmt = function() {
     return fmt(this, arguments);
   };
 
   /**
-    @see Ember.String.w
+    See `Ember.String.w`.
+
+    @method w
+    @for String
   */
   String.prototype.w = function() {
     return w(this);
   };
 
   /**
-    @see Ember.String.loc
+    See `Ember.String.loc`.
+
+    @method loc
+    @for String
   */
   String.prototype.loc = function() {
     return loc(this, arguments);
   };
 
   /**
-    @see Ember.String.camelize
+    See `Ember.String.camelize`.
+
+    @method camelize
+    @for String
   */
   String.prototype.camelize = function() {
     return camelize(this);
   };
 
   /**
-    @see Ember.String.decamelize
+    See `Ember.String.decamelize`.
+
+    @method decamelize
+    @for String
   */
   String.prototype.decamelize = function() {
     return decamelize(this);
   };
 
   /**
-    @see Ember.String.dasherize
+    See `Ember.String.dasherize`.
+
+    @method dasherize
+    @for String
   */
   String.prototype.dasherize = function() {
     return dasherize(this);
   };
 
   /**
-    @see Ember.String.underscore
+    See `Ember.String.underscore`.
+
+    @method underscore
+    @for String
   */
   String.prototype.underscore = function() {
     return underscore(this);
+  };
+
+  /**
+    See `Ember.String.classify`.
+
+    @method classify
+    @for String
+  */
+  String.prototype.classify = function() {
+    return classify(this);
+  };
+
+  /**
+    See `Ember.String.capitalize`.
+
+    @method capitalize
+    @for String
+  */
+  String.prototype.capitalize = function() {
+    return capitalize(this);
   };
 
 }

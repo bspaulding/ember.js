@@ -1,4 +1,4 @@
-var get = Ember.get, set = Ember.set;
+var get = Ember.get, set = Ember.set, _$;
 
 module("Ember.State");
 
@@ -179,4 +179,189 @@ test("the isLeaf property is false when a state has child states", function() {
   equal(insideFirst.get('isLeaf'), true);
   equal(otherInsideFirst.get('isLeaf'), false);
   equal(definitelyInside.get('isLeaf'), true);
+});
+
+test("propagates its container to its child states", function(){
+  var container = { lookup: Ember.K },
+      manager = Ember.StateManager.create({
+        container: container,
+        states: {
+          first: Ember.State.extend({
+            insideFirst: Ember.State.extend()
+          }),
+          second: Ember.State.create()
+        }
+      });
+
+  var first = manager.get('states.first'),
+      insideFirst = first.get('states.insideFirst'),
+      second = manager.get('states.second');
+
+  equal(first.container, container, 'container should be given to a `create`ed child state');
+  equal(insideFirst.container, container, 'container should be given to a nested child state');
+  equal(second.container, container, 'container should be given to a `extend`ed child state after creation');
+});
+
+module("Ember.State.transitionTo", {
+  setup: function(){
+    _$ = Ember.$;
+    Ember.$ = {};
+    Ember.$.Event = function(){};
+  },
+  teardown: function(){
+    Ember.$ = _$;
+  }
+});
+test("sets the transition target", function(){
+  var receivedTarget,
+      receivedContext,
+      stateManager,
+      transitionFunction;
+
+  stateManager = {
+    transitionTo: function(target, context){
+      receivedTarget = target;
+      receivedContext = context;
+    }
+  };
+
+  transitionFunction = Ember.State.transitionTo('targetState');
+
+  transitionFunction(stateManager, new Ember.$.Event());
+
+  equal(receivedTarget, 'targetState');
+  ok(!receivedContext, "does not pass a context when given an event without context");
+});
+
+test("passes no context arguments when there are no contexts", function(){
+  var contextArgsCount,
+      stateManager,
+      transitionFunction,
+      event;
+
+  event = new Ember.$.Event();
+  event.contexts = [];
+
+  stateManager = {
+    transitionTo: function(){
+      contextArgsCount = [].slice.call(arguments, 1).length;
+    }
+  };
+
+  transitionFunction = Ember.State.transitionTo('targetState');
+
+  transitionFunction(stateManager, event);
+
+  equal( contextArgsCount, 0);
+});
+
+test("passes through a single context", function(){
+  var receivedContext,
+      stateManager,
+      transitionFunction,
+      event;
+
+  event = new Ember.$.Event();
+  event.contexts = [{ value: 'context value' }];
+
+  stateManager = {
+    transitionTo: function(target, context){
+      receivedContext = context;
+    }
+  };
+
+  transitionFunction = Ember.State.transitionTo('targetState');
+
+  transitionFunction(stateManager, event);
+
+  equal( receivedContext, event.contexts[0]);
+});
+
+test("passes through multiple contexts as additional arguments", function(){
+  var receivedContexts,
+      stateManager,
+      transitionFunction,
+      event;
+
+  event = new Ember.$.Event();
+  event.contexts = [ { value: 'context1' }, { value: 'context2' } ];
+
+  stateManager = {
+    transitionTo: function(target){
+      receivedContexts = [].slice.call(arguments, 1);
+    }
+  };
+
+  transitionFunction = Ember.State.transitionTo('targetState');
+
+  transitionFunction(stateManager, event);
+
+  deepEqual( receivedContexts, event.contexts);
+});
+
+test("does not mutate the event contexts value", function(){
+  var receivedContexts,
+      stateManager,
+      transitionFunction,
+      originalContext,
+      event;
+
+  originalContext = [ { value: 'context1' }, { value: 'context2' } ];
+
+  event = new Ember.$.Event();
+  event.contexts = originalContext.slice();
+
+  stateManager = {
+    transitionTo: function(target){
+      receivedContexts = [].slice.call(arguments, 1);
+    }
+  };
+
+  transitionFunction = Ember.State.transitionTo('targetState');
+
+  transitionFunction(stateManager, event);
+
+  deepEqual(event.contexts, originalContext);
+});
+
+test("passes no context arguments when called with no context or event", function(){
+  var receivedContexts,
+      stateManager,
+      transitionFunction;
+
+  stateManager = {
+    transitionTo: function(target){
+      receivedContexts = [].slice.call(arguments, 1);
+    }
+  };
+
+  transitionFunction = Ember.State.transitionTo('targetState');
+
+  transitionFunction(stateManager);
+
+  equal( receivedContexts.length, 0, "transitionTo receives no context");
+});
+
+test("handles contexts without an event", function(){
+  var receivedContexts,
+      stateManager,
+      transitionFunction,
+      context1,
+      context2;
+
+  context1 = { value: 'context1', contexts: 'I am not an event'};
+  context2 = { value: 'context2', contexts: ''};
+
+  stateManager = {
+    transitionTo: function(target){
+      receivedContexts = [].slice.call(arguments, 1);
+    }
+  };
+
+  transitionFunction = Ember.State.transitionTo('targetState');
+
+  transitionFunction(stateManager, context1, context2);
+
+  equal( receivedContexts[0], context1, "the first context is passed through" );
+  equal( receivedContexts[1], context2, "the second context is passed through" );
 });
