@@ -46,6 +46,19 @@ function click(app, selector, context) {
   return wait(app);
 }
 
+function keyEvent(app, selector, context, type, keyCode) {
+  var $el;
+  if (typeof keyCode === 'undefined') {
+    keyCode = type;
+    type = context;
+    context = null;
+  }
+  $el = findWithAssert(app, selector, context);
+  var event = Ember.$.Event(type, { keyCode: keyCode });
+  Ember.run($el, 'trigger', event);
+  return wait(app);
+}
+
 function fillIn(app, selector, context, text) {
   var $el;
   if (typeof text === 'undefined') {
@@ -152,7 +165,7 @@ function chain(app, promise, fn) {
 * Example:
 * 
 * ```
-* visit('posts/index').then(function(){
+* visit('posts/index').then(function() {
 *   // assert something
 * });
 * ```
@@ -170,16 +183,35 @@ helper('visit', visit);
 * Example:
 *
 * ```
-* click('.some-jQuery-selector').then(function(){
+* click('.some-jQuery-selector').then(function() {
 *  // assert something
 * });
 * ```
 *
 * @method click
-* @param {String} selcetor jQuery selector for finding element on the DOM
+* @param {String} selector jQuery selector for finding element on the DOM
 * @returns {RSVP.Promise}
 */
 helper('click', click);
+
+/**
+* Simulates a key event, e.g. `keypress`, `keydown`, `keyup` with the desired keyCode
+*
+* Example:
+*
+* ```
+* keyEvent('.some-jQuery-selector', 'keypress', 13).then(function() {
+*  // assert something
+* });
+* ```
+*
+* @method keyEvent
+* @param {String} selector jQuery selector for finding element on the DOM
+* @param {String} the type of key event, e.g. `keypress`, `keydown`, `keyup`
+* @param {Number} the keyCode of the simulated key event
+* @returns {RSVP.Promise}
+*/
+helper('keyEvent', keyEvent);
 
 /**
 * Fills in an input element with some text.
@@ -187,7 +219,7 @@ helper('click', click);
 * Example:
 *
 * ```
-* fillIn('#email', 'you@example.com').then(function(){
+* fillIn('#email', 'you@example.com').then(function() {
 *   // assert something
 * });
 * ```

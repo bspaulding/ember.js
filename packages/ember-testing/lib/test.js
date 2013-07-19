@@ -22,9 +22,9 @@ Ember.Test = {
 
     For example:
     ```javascript
-    Ember.Test.registerHelper('boot', function(app)) {
+    Ember.Test.registerHelper('boot', function(app) {
       Ember.run(app, app.deferReadiness);
-    }
+    });
     ```
 
     This helper can later be called without arguments
@@ -155,6 +155,8 @@ Ember.Application.reopen({
   testHelpers: {},
 
   setupForTesting: function() {
+    Ember.testing = true;
+
     this.deferReadiness();
 
     this.Router.reopen({

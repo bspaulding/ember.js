@@ -86,11 +86,7 @@ Ember.Router = Ember.Object.extend({
   handleURL: function(url) {
     scheduleLoadingStateEntry(this);
 
-    var self = this;
-
-    return this.router.handleURL(url).then(function() {
-      transitionCompleted(self);
-    });
+    return this.router.handleURL(url).then(transitionCompleted);
   },
 
   transitionTo: function() {
@@ -259,9 +255,7 @@ function doTransition(router, method, args) {
   scheduleLoadingStateEntry(router);
 
   var transitionPromise = router.router[method].apply(router.router, args);
-  transitionPromise.then(function() {
-    transitionCompleted(router);
-  });
+  transitionPromise.then(transitionCompleted);
 
   // We want to return the configurable promise object
   // so that callers of this function can use `.method()` on it,
@@ -295,7 +289,8 @@ function exitLoadingState(router) {
   router._loadingStateActive = false;
 }
 
-function transitionCompleted(router) {
+function transitionCompleted(route) {
+  var router = route.router;
   router.notifyPropertyChange('url');
   exitLoadingState(router);
 }
@@ -303,7 +298,7 @@ function transitionCompleted(router) {
 Ember.Router.reopenClass({
   map: function(callback) {
     var router = this.router;
-    if (!router){
+    if (!router) {
       router = this.router = new Router();
       router.callbacks = [];
     }
@@ -314,7 +309,7 @@ Ember.Router.reopenClass({
 
     var dsl = Ember.RouterDSL.map(function() {
       this.resource('application', { path: "/" }, function() {
-        for (var i=0; i < router.callbacks.length; i++){
+        for (var i=0; i < router.callbacks.length; i++) {
           router.callbacks[i].call(this);
         }
         callback.call(this);
